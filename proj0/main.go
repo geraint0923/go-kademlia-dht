@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -33,20 +35,20 @@ func (msg *ClientMsg) Build() {
 				msg.DstClient = msg.SrcClient
 				msg.Msg = "chitter: " + strconv.Itoa(msg.SrcClient) + "\n"
 			} else if cmd == "all" {
-				msg.Msg = strconv.Itoa(msg.SrcClient) + ": " + msg.Msg[idx+1:]
+				msg.Msg = strconv.Itoa(msg.SrcClient) + ": " + strings.TrimSpace(msg.Msg[idx+1:]) + "\n"
 			} else {
 				iv, err := strconv.Atoi(cmd)
 				if err == nil {
 					msg.DstClient = iv
 					msgValue := msg.Msg[idx+1:]
-					msg.Msg = strconv.Itoa(msg.SrcClient) + ": " + msgValue
+					msg.Msg = strconv.Itoa(msg.SrcClient) + ": " + strings.TrimSpace(msgValue) + "\n"
 				} else {
 					msg.DstClient = -2
 				}
 			}
 		}
 	} else {
-		msg.Msg = strconv.Itoa(msg.SrcClient) + ": " + msg.Msg
+		msg.Msg = strconv.Itoa(msg.SrcClient) + ": " + strings.TrimSpace(msg.Msg) + "\n"
 	}
 }
 
@@ -103,8 +105,21 @@ func HandleMsg(ctlCh chan Client, msgCh chan *ClientMsg) {
 }
 
 func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("Usage: " + os.Args[0] + " port_number")
+		return
+	}
+	port, err := strconv.Atoi(os.Args[1])
+	if err != nil || port < 0 || port > 65535 {
+		fmt.Println("Invalid port: " + strconv.Itoa(port))
+		return
+	}
 	clientId := 1
-	server, _ := net.Listen("tcp", ":2323")
+	server, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	if err != nil {
+		fmt.Println("Failed to listen: " + err.Error())
+		return
+	}
 	ctlChan := make(chan Client)
 	msgChan := make(chan *ClientMsg)
 	go HandleMsg(ctlChan, msgChan)
