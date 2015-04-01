@@ -30,7 +30,7 @@ func (msg *ClientMsg) Build() {
 	if idx != -1 {
 		cmd := msg.Msg[0:idx]
 		cmd = strings.TrimSpace(cmd)
-		if len(cmd) > 0 {
+		if len(cmd) >= 0 {
 			if cmd == "whoami" {
 				msg.DstClient = msg.SrcClient
 				msg.Msg = "chitter: " + strconv.Itoa(msg.SrcClient) + "\n"
@@ -38,7 +38,7 @@ func (msg *ClientMsg) Build() {
 				msg.Msg = strconv.Itoa(msg.SrcClient) + ": " + strings.TrimSpace(msg.Msg[idx+1:]) + "\n"
 			} else {
 				iv, err := strconv.Atoi(cmd)
-				if err == nil {
+				if err == nil && iv > 0 {
 					msg.DstClient = iv
 					msgValue := msg.Msg[idx+1:]
 					msg.Msg = strconv.Itoa(msg.SrcClient) + ": " + strings.TrimSpace(msgValue) + "\n"
