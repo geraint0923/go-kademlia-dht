@@ -65,6 +65,7 @@ func HandleConn(ctlCh chan Client, msgCh chan *ClientMsg, cli Client) {
 	cli.Opcode = CTLADD
 	ctlCh <- cli
 	reader := bufio.NewReader(cli.Conn)
+	defer cli.Conn.Close()
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -120,6 +121,7 @@ func main() {
 		fmt.Println("Failed to listen: " + err.Error())
 		return
 	}
+	defer server.Close()
 	ctlChan := make(chan Client)
 	msgChan := make(chan *ClientMsg)
 	go HandleMsg(ctlChan, msgChan)
