@@ -4,16 +4,12 @@ import (
 	"container/list"
 )
 
-const (
-	K = 20
-)
-
 type KBucket struct {
 	PrefixLen   int
 	ContactList *list.List
 }
 
-func New(prefixLen int) (b *KBucket) {
+func NewKBucket(prefixLen int) (b *KBucket) {
 	b = new(KBucket)
 	b.PrefixLen = prefixLen
 	b.ContactList = list.New()
@@ -30,19 +26,55 @@ func (b *KBucket) Len() int {
 
 func (b *KBucket) Split(nodeID ID) (ret *KBucket) {
 	ret = nil
-	if b.PrefixLen > IDBytes*8 {
+	if b.PrefixLen >= IDBytes*8 {
 		return
 	}
-	ret = New(b.PrefixLen + 1)
+	ret = NewKBucket(b.PrefixLen + 1)
 	oldList := b.ContactList
 	b.ContactList = list.New()
 	for e := oldList.Front(); e != nil; e = e.Next() {
-		contact := e.Value.(Contact)
+		contact := e.Value.(*Contact)
 		if contact.NodeID.TestBit(nodeID, b.PrefixLen) {
 			ret.ContactList.PushBack(contact)
 		} else {
 			b.ContactList.PushBack(contact)
 		}
+	}
+	return
+}
+
+func (b *KBucket) Head() (ret *Contact) {
+	ret = nil
+	head := b.ContactList.Front()
+	if head != nil {
+		ret = head.Value.(*Contact)
+	}
+	return
+}
+
+func (b *KBucket) RemoveHead(c *Contact) bool {
+	head := b.ContactList.Front()
+	if head != nil && c.Equals(head.Value.(*Contact)) {
+		b.ContactList.Remove(head)
+		return true
+	}
+	return false
+}
+
+func (b *KBucket) MoveHeadToTail() {
+	b.ContactList.MoveToBack(b.ContactList.Front())
+}
+
+func (b *KBucket) Append(c *Contact) {
+	b.ContactList.PushBack(c)
+}
+
+func (b *KBucket) GetKLast(k int) (ret []*Contact) {
+	ret = []*Contact{}
+	c := 0
+	for e := b.ContactList.Back(); e != nil && c < k; e = e.Prev() {
+		c++
+		ret = append(ret, e.Value.(*Contact))
 	}
 	return
 }
