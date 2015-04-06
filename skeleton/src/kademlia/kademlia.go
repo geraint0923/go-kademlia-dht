@@ -3,6 +3,7 @@ package kademlia
 import (
 	"fmt"
 	"log"
+	"net"
 	"strconv"
 )
 
@@ -207,4 +208,25 @@ func (k *Kademlia) HandleRouteTable() {
 		}
 		break
 	}
+}
+
+func (k *Kademlia) DoPing(remoteHost net.IP, port uint16) {
+}
+
+func (k *Kademlia) DoStore(remoteContact *Contact, key ID, value []byte) {
+}
+
+func (k *Kademlia) DoFindValue(remoteContact *Contact, key ID) {
+}
+
+func (k *Kademlia) DoFindNode(remoteContact *Contact, searchKey ID) {
+}
+
+func (k *Kademlia) IterativeFindNode(key ID) {
+}
+
+func (k *Kademlia) IterativeFindValue(key ID) {
+}
+
+func (k *Kademlia) IterativeStore(key ID, value []byte) {
 }
