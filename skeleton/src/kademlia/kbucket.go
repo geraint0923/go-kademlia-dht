@@ -61,8 +61,11 @@ func (b *KBucket) RemoveHead(c *Contact) bool {
 	return false
 }
 
-func (b *KBucket) MoveHeadToTail() {
-	b.ContactList.MoveToBack(b.ContactList.Front())
+func (b *KBucket) MoveHeadToTail(c *Contact) {
+	head := b.ContactList.Front()
+	if head != nil && c.Equals(head.Value.(*Contact)) {
+		b.ContactList.MoveToBack(head)
+	}
 }
 
 func (b *KBucket) Append(c *Contact) {
