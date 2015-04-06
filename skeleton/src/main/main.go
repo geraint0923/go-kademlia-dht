@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
 	"time"
 )
 
@@ -61,4 +63,20 @@ func main() {
 
 	log.Printf("ping msgID: %s\n", ping.MsgID.AsString())
 	log.Printf("pong msgID: %s\n", pong.MsgID.AsString())
+
+	bio := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("Kademlia > ")
+		bytes, _, err := bio.ReadLine()
+		line := string(bytes)
+		if err != nil {
+			fmt.Println("Exit..")
+			break
+		}
+		err = ExecuteCommand(line, kadem)
+		if err != nil {
+			fmt.Println("Exit..")
+			break
+		}
+	}
 }

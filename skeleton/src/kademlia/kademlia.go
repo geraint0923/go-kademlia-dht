@@ -61,6 +61,7 @@ func NewKademlia() (k *Kademlia) {
 	k.routeTable = append(k.routeTable, kb)
 	k.routeTableChannel = make(chan *msg)
 	k.routeTableResponseChannel = make(chan *msg)
+	k.exitChannel = make(chan bool)
 	fmt.Println("Init Done")
 	return
 }

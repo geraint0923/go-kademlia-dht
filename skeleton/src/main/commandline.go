@@ -63,14 +63,35 @@ var CommandArray = [...]CommandHandler{
 	},
 }
 
-func ExecuteCommand(line string, data interface{}) {
-	splitRes := strings.Split(line, " ")
+type cmdError struct {
+	info string
+}
+
+func (e *cmdError) Error() string {
+	return e.info
+}
+
+func ExecuteCommand(line string, data interface{}) (ret error) {
 	var cmdFound *CommandHandler = nil
+	tmpRes := strings.Split(line, " ")
+	ret = nil
 	cmd := ""
 	args := []string{}
 	// set command name
+	splitRes := []string{}
+	for _, str := range tmpRes {
+		str = strings.TrimSpace(str)
+		if len(str) > 0 {
+			splitRes = append(splitRes, str)
+		}
+	}
 	if len(splitRes) > 0 {
-		cmd = strings.TrimSpace(splitRes[0])
+		cmd = splitRes[0]
+		args = splitRes[1:]
+	}
+	if cmd == "exit" {
+		ret = &cmdError{"exit command"}
+		return
 	}
 	for _, val := range CommandArray {
 		if val.CommandName == cmd {
@@ -86,4 +107,5 @@ func ExecuteCommand(line string, data interface{}) {
 	} else {
 		fmt.Println("Command not found: " + cmd)
 	}
+	return
 }

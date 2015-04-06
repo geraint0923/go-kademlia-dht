@@ -2,7 +2,17 @@ package main
 
 import (
 	"fmt"
+	"kademlia"
 )
+
+func toKademlia(data interface{}) (ret *kademlia.Kademlia) {
+	ret = nil
+	if val, success := data.(*kademlia.Kademlia); success {
+		fmt.Println("success")
+		ret = val
+	}
+	return
+}
 
 func TestHehe(cmd string, args []string, data interface{}) error {
 	fmt.Println("Test Command =>" + cmd)
@@ -10,6 +20,9 @@ func TestHehe(cmd string, args []string, data interface{}) error {
 }
 
 func CmdDoWhoami(cmd string, args []string, data interface{}) error {
+	k := toKademlia(data)
+	if k != nil {
+	}
 	return nil
 }
 
