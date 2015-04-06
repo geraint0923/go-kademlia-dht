@@ -153,10 +153,11 @@ func (k *Kademlia) HandleRouteTable() {
 			split := false
 			if idx == B {
 				idx = -1
-				split = true
 			}
+			tmp := idx
 			if idx >= len(k.routeTable) {
 				idx = len(k.routeTable) - 1
+				split = true
 			}
 			if idx >= 0 && k.routeTable[idx].Len() < K {
 				res.Opcode = OP_OK
@@ -164,10 +165,19 @@ func (k *Kademlia) HandleRouteTable() {
 				k.routeTable[idx].Append(c)
 			} else if idx >= 0 && split {
 				res.Opcode = OP_OK
-				res.Value = true
 				newBucket := k.routeTable[idx].Split(k.NodeID)
 				k.routeTable = append(k.routeTable, newBucket)
-				k.routeTable[idx+1].Append(c)
+				if tmp > idx {
+					if k.routeTable[idx+1].Len() < K {
+						k.routeTable[idx+1].Append(c)
+						res.Value = true
+					}
+				} else {
+					if k.routeTable[idx].Len() < K {
+						k.routeTable[idx].Append(c)
+						res.Value = true
+					}
+				}
 			} else {
 				res.Opcode = OP_OK
 				res.Value = false
