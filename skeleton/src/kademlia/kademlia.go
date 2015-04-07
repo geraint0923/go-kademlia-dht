@@ -29,13 +29,13 @@ const (
 
 // for RouteTable operation
 const (
-	RT_LEN                = iota // Value is not required
-	RT_BUCKET_LEN         = iota // Value should be the index of buckets, from 0
-	RT_BUCKET_HEAD        = iota // Value should be the index of buckets
-	RT_GET_K_LAST         = iota // Value should be the request ID
-	RT_REMOVE_BUCKET_HEAD = iota // Value should be the removed Contact
-	RT_SPLIT_AND_ADD      = iota // Value should be the inserted Contact
-	RT_MOVE_HEAD_TO_TAIL  = iota // Value should be the moved Contact
+	RT_LEN          = iota // Value is not required
+	RT_BUCKET_LEN   = iota // Value should be the index of buckets, from 0
+	RT_BUCKET_HEAD  = iota // Value should be the index of buckets
+	RT_GET_K_LAST   = iota // Value should be the request ID
+	RT_REMOVE       = iota // Value should be the removed Contact
+	RT_SPLIT_ADD    = iota // Value should be the inserted Contact
+	RT_MOVE_TO_TAIL = iota // Value should be the moved Contact
 )
 
 type msg struct {
@@ -132,7 +132,7 @@ func HandleRouteTable(k *Kademlia) {
 				res.Value = ret
 			}
 			k.routeTableResponseChannel <- res
-		case RT_REMOVE_BUCKET_HEAD:
+		case RT_REMOVE:
 			c := m.Value.(*Contact)
 			idx := k.NodeID.Xor(c.NodeID).PrefixLen()
 			if idx >= len(k.routeTable) {
@@ -144,10 +144,10 @@ func HandleRouteTable(k *Kademlia) {
 			}
 			if idx >= 0 && k.routeTable[idx].Len() >= K {
 				res.Opcode = OP_OK
-				res.Value = k.routeTable[idx].RemoveHead(c)
+				res.Value = k.routeTable[idx].Remove(c)
 			}
 			k.routeTableResponseChannel <- res
-		case RT_SPLIT_AND_ADD:
+		case RT_SPLIT_ADD:
 			c := m.Value.(*Contact)
 			res := &msg{
 				Opcode: OP_FAILURE,
@@ -187,11 +187,11 @@ func HandleRouteTable(k *Kademlia) {
 				res.Value = false
 			}
 			k.routeTableResponseChannel <- res
-		case RT_MOVE_HEAD_TO_TAIL:
+		case RT_MOVE_TO_TAIL:
 			c := m.Value.(*Contact)
 			res := &msg{
 				Opcode: OP_FAILURE,
-				Value:  nil,
+				Value:  false,
 			}
 			idx := k.NodeID.Xor(c.NodeID).PrefixLen()
 			if idx == B {
@@ -202,8 +202,7 @@ func HandleRouteTable(k *Kademlia) {
 			}
 			if idx >= 0 {
 				res.Opcode = OP_OK
-				res.Value = true
-				k.routeTable[idx].MoveHeadToTail(c)
+				res.Value = k.routeTable[idx].MoveToTail(c)
 			}
 			k.routeTableResponseChannel <- res
 		default:
@@ -211,6 +210,10 @@ func HandleRouteTable(k *Kademlia) {
 		}
 		break
 	}
+}
+
+// update the route table using given contact
+func UpdateRouteTable(k *Kademlia, c *Contact) {
 }
 
 func DoPing(k *Kademlia, remoteHost net.IP, port uint16) {

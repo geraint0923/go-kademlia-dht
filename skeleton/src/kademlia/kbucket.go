@@ -52,20 +52,38 @@ func (b *KBucket) Head() (ret *Contact) {
 	return
 }
 
-func (b *KBucket) RemoveHead(c *Contact) bool {
-	head := b.ContactList.Front()
-	if head != nil && c.Equals(head.Value.(*Contact)) {
-		b.ContactList.Remove(head)
-		return true
+func (b *KBucket) Remove(c *Contact) bool {
+	/*
+		head := b.ContactList.Front()
+		if head != nil && c.Equals(head.Value.(*Contact)) {
+			b.ContactList.Remove(head)
+			return true
+		}
+		return false
+	*/
+	for e := b.ContactList.Front(); e != nil; e = e.Next() {
+		if c.Equals(e.Value.(*Contact)) {
+			b.ContactList.Remove(e)
+			return true
+		}
 	}
 	return false
 }
 
-func (b *KBucket) MoveHeadToTail(c *Contact) {
-	head := b.ContactList.Front()
-	if head != nil && c.Equals(head.Value.(*Contact)) {
-		b.ContactList.MoveToBack(head)
+func (b *KBucket) MoveToTail(c *Contact) bool {
+	/*
+		head := b.ContactList.Front()
+		if head != nil && c.Equals(head.Value.(*Contact)) {
+			b.ContactList.MoveToBack(head)
+		}
+	*/
+	for e := b.ContactList.Front(); e != nil; e = e.Next() {
+		if c.Equals(e.Value.(*Contact)) {
+			b.ContactList.MoveToBack(e)
+			return true
+		}
 	}
+	return false
 }
 
 func (b *KBucket) Append(c *Contact) {
