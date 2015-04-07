@@ -4,7 +4,10 @@ package kademlia
 // strictly to these to be compatible with the reference implementation and
 // other groups' code.
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 // Host identification.
 type Contact struct {
@@ -31,6 +34,7 @@ type Pong struct {
 func (k *Kademlia) Ping(ping Ping, pong *Pong) error {
 	// This one's a freebie.
 	pong.MsgID = CopyID(ping.MsgID)
+	fmt.Println("NodeID: " + k.NodeID.AsString())
 	return nil
 }
 

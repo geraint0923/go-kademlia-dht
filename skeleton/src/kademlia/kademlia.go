@@ -66,15 +66,15 @@ func NewKademlia() (k *Kademlia) {
 	return
 }
 
-func (k *Kademlia) Run() {
-	go k.HandleRouteTable()
+func Run(k *Kademlia) {
+	go HandleRouteTable(k)
 }
 
-func (k *Kademlia) Stop() {
+func Stop(k *Kademlia) {
 	close(k.exitChannel)
 }
 
-func (k *Kademlia) HandleRouteTable() {
+func HandleRouteTable(k *Kademlia) {
 	select {
 	case <-k.exitChannel:
 		break
@@ -211,23 +211,23 @@ func (k *Kademlia) HandleRouteTable() {
 	}
 }
 
-func (k *Kademlia) DoPing(remoteHost net.IP, port uint16) {
+func DoPing(k *Kademlia, remoteHost net.IP, port uint16) {
 }
 
-func (k *Kademlia) DoStore(remoteContact *Contact, key ID, value []byte) {
+func DoStore(k *Kademlia, remoteContact *Contact, key ID, value []byte) {
 }
 
-func (k *Kademlia) DoFindValue(remoteContact *Contact, key ID) {
+func DoFindValue(k *Kademlia, remoteContact *Contact, key ID) {
 }
 
-func (k *Kademlia) DoFindNode(remoteContact *Contact, searchKey ID) {
+func DoFindNode(k *Kademlia, remoteContact *Contact, searchKey ID) {
 }
 
-func (k *Kademlia) IterativeFindNode(key ID) {
+func IterativeFindNode(k *Kademlia, key ID) {
 }
 
-func (k *Kademlia) IterativeFindValue(key ID) {
+func IterativeFindValue(k *Kademlia, key ID) {
 }
 
-func (k *Kademlia) IterativeStore(key ID, value []byte) {
+func IterativeStore(k *Kademlia, key ID, value []byte) {
 }

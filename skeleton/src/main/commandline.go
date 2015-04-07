@@ -14,14 +14,6 @@ type CommandHandler struct {
 
 var CommandArray = [...]CommandHandler{
 	CommandHandler{
-		CommandName: "test",
-		CommandFunc: TestHehe,
-	},
-	CommandHandler{
-		CommandName: "test1",
-		CommandFunc: TestHehe,
-	},
-	CommandHandler{
 		CommandName: "whoami",
 		CommandFunc: CmdDoWhoami,
 	},

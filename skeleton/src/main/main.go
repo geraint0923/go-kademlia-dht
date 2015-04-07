@@ -33,8 +33,8 @@ func main() {
 
 	fmt.Printf("kademlia starting up!\n")
 	kadem := kademlia.NewKademlia()
-	kadem.Run()
-	defer kadem.Stop()
+	kademlia.Run(kadem)
+	defer kademlia.Stop(kadem)
 
 	rpc.Register(kadem)
 	rpc.HandleHTTP()
