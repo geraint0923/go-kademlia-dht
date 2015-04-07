@@ -46,6 +46,7 @@ type msg struct {
 // Core Kademlia type. You can put whatever state you want in this.
 type Kademlia struct {
 	NodeID                    ID
+	LocalStorage              *Storage
 	routeTable                []*KBucket
 	routeTableChannel         chan *msg
 	routeTableResponseChannel chan *msg
@@ -56,6 +57,7 @@ func NewKademlia() (k *Kademlia) {
 	// TODO: Assign yourself a random ID and prepare other state here.
 	k = new(Kademlia)
 	k.NodeID = NewRandomID()
+	k.LocalStorage = NewStorage()
 	k.routeTable = []*KBucket{}
 	kb := NewKBucket(0)
 	k.routeTable = append(k.routeTable, kb)
