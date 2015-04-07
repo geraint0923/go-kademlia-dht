@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"kademlia"
+	"net"
+	"strconv"
+	"strings"
 )
 
 func toKademlia(data interface{}) (ret *kademlia.Kademlia) {
@@ -59,6 +62,22 @@ func CmdDoIterativeFindValue(cmd string, args []string, data interface{}) error 
 func CmdDoPing(cmd string, args []string, data interface{}) error {
 	k := toKademlia(data)
 	if k != nil {
+		if len(args) >= 1 {
+			strList := strings.Split(args[0], ":")
+			if len(strList) > 1 {
+				// TODO: parse the host and the port
+				port, err := strconv.Atoi(strList[1])
+				if err == nil {
+					kademlia.DoPing(k, net.ParseIP(strList[0]), uint16(port))
+				} else {
+					fmt.Println("Failed to parse port")
+				}
+			} else {
+				fmt.Println("Not implemented")
+			}
+		} else {
+			fmt.Println("usage: ping [host:port]")
+		}
 	}
 	return nil
 }

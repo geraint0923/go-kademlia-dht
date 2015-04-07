@@ -2,9 +2,11 @@ package kademlia
 
 import (
 	"fmt"
-	"log"
+	//"log"
 	"net"
+	"net/rpc"
 	"strconv"
+	"sync"
 )
 
 // Contains the core kademlia type. In addition to core state, this type serves
@@ -28,6 +30,7 @@ const (
 )
 
 // for RouteTable operation
+/*
 const (
 	RT_LEN          = iota // Value is not required
 	RT_BUCKET_LEN   = iota // Value should be the index of buckets, from 0
@@ -42,15 +45,17 @@ type msg struct {
 	Opcode int
 	Value  interface{}
 }
+*/
 
 // Core Kademlia type. You can put whatever state you want in this.
 type Kademlia struct {
-	NodeID                    ID
-	LocalStorage              *Storage
-	routeTable                []*KBucket
-	routeTableChannel         chan *msg
-	routeTableResponseChannel chan *msg
-	exitChannel               chan bool
+	NodeID          ID
+	LocalStorage    *Storage
+	routeTable      []*KBucket
+	routeTableMutex *sync.Mutex
+	exitChannel     chan bool
+	//routeTableChannel         chan *msg
+	//routeTableResponseChannel chan *msg
 }
 
 func NewKademlia() (k *Kademlia) {
@@ -59,23 +64,25 @@ func NewKademlia() (k *Kademlia) {
 	k.NodeID = NewRandomID()
 	k.LocalStorage = NewStorage()
 	k.routeTable = []*KBucket{}
+	k.routeTableMutex = &sync.Mutex{}
 	kb := NewKBucket(0)
 	k.routeTable = append(k.routeTable, kb)
-	k.routeTableChannel = make(chan *msg)
-	k.routeTableResponseChannel = make(chan *msg)
+	//k.routeTableChannel = make(chan *msg)
+	//k.routeTableResponseChannel = make(chan *msg)
 	k.exitChannel = make(chan bool)
 	fmt.Println("Init Done")
 	return
 }
 
 func Run(k *Kademlia) {
-	go HandleRouteTable(k)
+	//go HandleRouteTable(k)
 }
 
 func Stop(k *Kademlia) {
 	close(k.exitChannel)
 }
 
+/*
 func HandleRouteTable(k *Kademlia) {
 	select {
 	case <-k.exitChannel:
@@ -211,12 +218,98 @@ func HandleRouteTable(k *Kademlia) {
 		break
 	}
 }
+*/
 
 // update the route table using given contact
 func UpdateRouteTable(k *Kademlia, c *Contact) {
+	// TODO: use internalDoPing to test survival of the Contact
+	idx := k.NodeID.Xor(c.NodeID).PrefixLen()
+
+	k.routeTableMutex.Lock()
+	curIdx := idx
+	var head *Contact
+	var headIdx int
+	var success bool
+	if curIdx >= len(k.routeTable) {
+		curIdx = len(k.routeTable) - 1
+	}
+	if k.routeTable[curIdx].MoveToTail(c) {
+		goto done
+	}
+	if k.routeTable[curIdx].Len() < K {
+		k.routeTable[curIdx].Append(c)
+		goto done
+	}
+	for idx >= len(k.routeTable) {
+		newBucket := k.routeTable[curIdx].Split(k.NodeID)
+		k.routeTable = append(k.routeTable, newBucket)
+		curIdx++
+		if k.routeTable[curIdx].Len() < K {
+			k.routeTable[curIdx].Append(c)
+			goto done
+		}
+	}
+	head = k.routeTable[curIdx].Head()
+
+	k.routeTableMutex.Unlock()
+	success = internalDoPing(k, head.Host, head.Port, false)
+	k.routeTableMutex.Lock()
+
+	headIdx = k.NodeID.Xor(head.NodeID).PrefixLen()
+	if headIdx >= len(k.routeTable) {
+		headIdx = len(k.routeTable) - 1
+	}
+	if success {
+		k.routeTable[headIdx].MoveToTail(head)
+	} else {
+		k.routeTable[headIdx].Remove(head)
+	}
+	if k.routeTable[idx].Len() < K {
+		k.routeTable[idx].Append(c)
+	}
+done:
+	k.routeTableMutex.Unlock()
+}
+
+func getRPCClient(remoteHost net.IP, port uint16) *rpc.Client {
+	cli, err := rpc.DialHTTP("tcp", remoteHost.String()+":"+strconv.Itoa(int(port)))
+	if err != nil {
+		return nil
+	}
+	return cli
+}
+
+func internalDoPing(k *Kademlia, remoteHost net.IP, port uint16, update bool) bool {
+	// TODO: begin to do ping to other server
+	client := getRPCClient(remoteHost, port)
+	if client == nil {
+		fmt.Println("Nil client")
+		return false
+	}
+	ping := new(Ping)
+	ping.MsgID = NewRandomID()
+	var pong Pong
+	err := client.Call("Kademlia.Ping", ping, &pong)
+	if err != nil {
+		fmt.Println("Ping failed")
+		return false
+	}
+	if update {
+		go UpdateRouteTable(k, &Contact{
+			Host: remoteHost,
+			Port: port,
+		})
+	}
+	return true
 }
 
 func DoPing(k *Kademlia, remoteHost net.IP, port uint16) {
+	success := internalDoPing(k, remoteHost, port, true)
+	if success {
+		fmt.Println("Ping success")
+	} else {
+		fmt.Println("Ping failed")
+	}
 }
 
 func DoStore(k *Kademlia, remoteContact *Contact, key ID, value []byte) {
