@@ -303,12 +303,12 @@ func internalDoPing(k *Kademlia, remoteHost net.IP, port uint16, update bool) bo
 	return true
 }
 
-func DoPing(k *Kademlia, remoteHost net.IP, port uint16) {
+func DoPing(k *Kademlia, remoteHost net.IP, port uint16) bool {
 	success := internalDoPing(k, remoteHost, port, true)
 	if success {
-		fmt.Println("Ping success")
+		return true
 	} else {
-		fmt.Println("Ping failed")
+		return false
 	}
 }
 

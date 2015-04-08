@@ -68,12 +68,22 @@ func CmdDoPing(cmd string, args []string, data interface{}) error {
 				// TODO: parse the host and the port
 				port, err := strconv.Atoi(strList[1])
 				if err == nil {
-					kademlia.DoPing(k, net.ParseIP(strList[0]), uint16(port))
+					success := kademlia.DoPing(k, net.ParseIP(strList[0]), uint16(port))
+					if success {
+						fmt.Println("command ping success")
+					} else {
+						fmt.Println("command ping failed")
+					}
 				} else {
 					fmt.Println("Failed to parse port")
 				}
 			} else {
-				fmt.Println("Not implemented")
+				// TODO: parse the ID
+				curID, err := kademlia.FromString(args[0])
+				if err == nil {
+					// FIXME: handle whether the ID has showed up in the route table
+					fmt.Println("Not implemented")
+				}
 			}
 		} else {
 			fmt.Println("usage: ping [host:port]")
