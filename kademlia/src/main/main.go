@@ -63,6 +63,9 @@ func main() {
 			log.Fatal(err)
 		}
 		line = strings.TrimSpace(line)
+        if line == ""{
+            continue
+        }
 		resp := executeLine(kadem, line)
 		if resp == "quit" {
 			quit = true
