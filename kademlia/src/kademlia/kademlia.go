@@ -9,7 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
-    "strconv"
+	"strconv"
 )
 
 const (
@@ -20,10 +20,9 @@ const (
 
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
-	NodeID ID
-    SelfContact Contact
+	NodeID      ID
+	SelfContact Contact
 }
-
 
 func NewKademlia(laddr string) *Kademlia {
 	// TODO: Initialize other state here as you add functionality.
@@ -42,18 +41,18 @@ func NewKademlia(laddr string) *Kademlia {
 	// Run RPC server forever.
 	go http.Serve(l, nil)
 
-    // Add self contact
-    hostname, port, _ := net.SplitHostPort(l.Addr().String())
-    port_int, _ := strconv.Atoi(port)
-    ipAddrStrings, err := net.LookupHost(hostname)
-    var host net.IP
-    for i := 0; i < len(ipAddrStrings); i++ {
-        host = net.ParseIP(ipAddrStrings[i])
-        if host.To4() != nil {
-            break
-        }
-    }
-    k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
+	// Add self contact
+	hostname, port, _ := net.SplitHostPort(l.Addr().String())
+	port_int, _ := strconv.Atoi(port)
+	ipAddrStrings, err := net.LookupHost(hostname)
+	var host net.IP
+	for i := 0; i < len(ipAddrStrings); i++ {
+		host = net.ParseIP(ipAddrStrings[i])
+		if host.To4() != nil {
+			break
+		}
+	}
+	k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
 	return k
 }
 
@@ -69,9 +68,9 @@ func (e *NotFoundError) Error() string {
 func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	// TODO: Search through contacts, find specified ID
 	// Find contact with provided ID
-    if nodeId == k.SelfContact.NodeID {
-        return &k.SelfContact, nil
-    }
+	if nodeId == k.SelfContact.NodeID {
+		return &k.SelfContact, nil
+	}
 	return nil, &NotFoundError{nodeId, "Not found"}
 }
 
