@@ -36,8 +36,10 @@ type routingRequest struct {
 }
 
 type probeResult struct {
-	ProbeContact *list.Element
-	Result       bool
+	TargetKBucket  *KBucket
+	ProbeContact   *list.Element
+	ReplaceContact *Contact
+	Result         bool
 }
 
 func NewKademlia(laddr string) *Kademlia {
@@ -93,15 +95,35 @@ func (k *Kademlia) handleUpdate() {
 				fmt.Println("**update the self NodeID")
 				break
 			}
+			idx := k.NodeID.Xor(c.NodeID).PrefixLen()
+			if idx < b {
+				ct, _ := k.routingTable[idx].FindContact(c.NodeID)
+				if ct != nil {
+					k.routingTable[idx].MoveToBack(ct)
+				} else {
+					if k.routingTable[idx].Full() {
+						head := k.routingTable[idx].Front()
+						hc := head.Value.(Contact)
+						go func() {
+							_, ok := k.internalPing(hc.Host, hc.Port, false)
+							responseChannel <- probeResult{k.routingTable[idx], head, &c, ok}
+						}()
+					} else {
+						k.routingTable[idx].PushBack(c)
+					}
+				}
+
+			}
 			fmt.Println("**begin to update non-self NodeID")
 		// TODO: handle find request
 		case find := <-k.findChannel:
 			idx := k.NodeID.Xor(find.NodeID).PrefixLen()
-			var ct *Contact
+			var ct *Contact = nil
 			if idx < b {
-				ct, _ = k.routingTable[idx].FindContact(find.NodeID)
-			} else {
-				ct = nil
+				ele, _ := k.routingTable[idx].FindContact(find.NodeID)
+				if ele != nil {
+					ct = ele.Value.(*Contact)
+				}
 			}
 			find.ResponseChannel.(chan *Contact) <- ct
 		// TODO: handle get last reqeust
@@ -111,8 +133,11 @@ func (k *Kademlia) handleUpdate() {
 		case res := <-responseChannel:
 			if res.Result {
 				fmt.Println("result true")
+				res.TargetKBucket.MoveToBack(res.ProbeContact)
 			} else {
 				fmt.Println("result false")
+				res.TargetKBucket.Remove(res.ProbeContact)
+				res.TargetKBucket.PushBack(res.ReplaceContact)
 			}
 		}
 	}

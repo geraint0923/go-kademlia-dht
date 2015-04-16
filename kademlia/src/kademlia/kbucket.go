@@ -15,12 +15,12 @@ func NewKBucket() *KBucket {
 	return ret
 }
 
-func (b *KBucket) FindContact(nodeId ID) (*Contact, error) {
+func (b *KBucket) FindContact(nodeId ID) (*list.Element, error) {
 	fmt.Println("find => " + nodeId.AsString())
 	for e := b.Front(); e != nil; e = e.Next() {
 		c := e.Value.(Contact)
 		if nodeId.Equals(c.NodeID) {
-			return &c, nil
+			return e, nil
 		}
 	}
 	return nil, &NotFoundError{nodeId, "KBucket not found"}
