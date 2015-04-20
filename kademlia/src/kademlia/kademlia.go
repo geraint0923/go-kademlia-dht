@@ -318,7 +318,7 @@ func (k *Kademlia) internalFindValue(contact *Contact, searchKey ID) (res FindVa
 	req.Sender = k.SelfContact
 	req.MsgID = NewRandomID()
 	req.Key = searchKey
-	err := client.Call("KademliaCore.FindNode", req, &res)
+	err := client.Call("KademliaCore.FindValue", req, &res)
 	if err != nil || !req.MsgID.Equals(res.MsgID) {
 		fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
 		ok = false
@@ -341,7 +341,7 @@ func (k *Kademlia) DoFindValue(contact *Contact, searchKey ID) string {
 		buffer.WriteString(" Value = " + string(res.Value))
 	} else {
 		for idx, val := range res.Nodes {
-			buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + val.NodeID.AsString() + " => " + contact.Host.String() + ":" + strconv.Itoa(int(contact.Port)))
+			buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + val.NodeID.AsString() + " => " + val.Host.String() + ":" + strconv.Itoa(int(val.Port)))
 		}
 	}
 	return "OK: FindValue result =>" + buffer.String()
