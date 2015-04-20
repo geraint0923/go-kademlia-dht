@@ -5,6 +5,7 @@ package kademlia
 // other groups' code.
 
 import (
+	"errors"
 	"net"
 )
 
@@ -59,6 +60,14 @@ type StoreResult struct {
 
 func (kc *KademliaCore) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
+	res.MsgID = req.MsgID
+	ok := kc.kademlia.storage.Put(req.Key, req.Value)
+	if ok {
+		res.Err = nil
+	} else {
+		res.Err = errors.New("Failed to store")
+	}
+	kc.kademlia.updateChannel <- req.Sender
 	return nil
 }
 
@@ -79,6 +88,9 @@ type FindNodeResult struct {
 
 func (kc *KademliaCore) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	// TODO: Implement.
+	res.MsgID = req.MsgID
+	res.Nodes = kc.kademlia.getLastContactFromRoutingTable(req.NodeID)
+	kc.kademlia.updateChannel <- req.Sender
 	return nil
 }
 
@@ -102,5 +114,16 @@ type FindValueResult struct {
 
 func (kc *KademliaCore) FindValue(req FindValueRequest, res *FindValueResult) error {
 	// TODO: Implement.
+	res.MsgID = req.MsgID
+	val, ok := kc.kademlia.storage.Get(req.Key)
+	if ok {
+		res.Value = val
+		res.Nodes = nil
+	} else {
+		res.Value = nil
+		res.Nodes = kc.kademlia.getLastContactFromRoutingTable(req.Key)
+	}
+	res.Err = nil
+	kc.kademlia.updateChannel <- req.Sender
 	return nil
 }

@@ -4,6 +4,7 @@ package kademlia
 // as a receiver for the RPC methods, which is required by that package.
 
 import (
+	"bytes"
 	"container/list"
 	"fmt"
 	"log"
@@ -250,19 +251,86 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) string {
 	if err != nil {
 		return "ERR: Store on " + contact.NodeID.AsString() + "(" + contact.Host.String() + ":" + strconv.Itoa(int(contact.Port)) + ") : " + err.Error()
 	}
+	if !res.MsgID.Equals(req.MsgID) || res.Err != nil {
+		return "ERR: Remote Store on " + contact.NodeID.AsString() + "(" + contact.Host.String() + ":" + strconv.Itoa(int(contact.Port)) + ") : " + err.Error()
+	}
 	return "OK: " + contact.NodeID.AsString()
+}
+
+func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNodeResult, ok bool) {
+	client := GetClient(contact.Host, contact.Port)
+	if client == nil {
+		fmt.Println("Failed to connect to " + contact.NodeID.AsString())
+		ok = false
+		return
+	}
+	req := new(FindNodeRequest)
+	req.Sender = k.SelfContact
+	req.MsgID = NewRandomID()
+	req.NodeID = searchKey
+	err := client.Call("KademliaCore.FindNode", req, &res)
+	if err != nil || !req.MsgID.Equals(res.MsgID) {
+		fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
+		ok = false
+		return
+	}
+	ok = true
+	return
 }
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) string {
 	// TODO: Implement
 	// If all goes well, return "OK: <output>", otherwise print "ERR: <messsage>"
-	return "ERR: Not implemented"
+	//return "ERR: Not implemented"
+	res, ok := k.internalFindNode(contact, searchKey)
+	if !ok {
+		return "ERR: FindNode failed: " + searchKey.AsString()
+	}
+	var buffer bytes.Buffer
+	for idx, val := range res.Nodes {
+		buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + val.NodeID.AsString() + " => " + contact.Host.String() + ":" + strconv.Itoa(int(contact.Port)))
+	}
+	return "OK: FindNode result =>" + buffer.String()
+}
+
+func (k *Kademlia) internalFindValue(contact *Contact, searchKey ID) (res FindValueResult, ok bool) {
+	client := GetClient(contact.Host, contact.Port)
+	if client == nil {
+		fmt.Println("Failed to connect to " + contact.NodeID.AsString())
+		ok = false
+		return
+	}
+	req := new(FindValueRequest)
+	req.Sender = k.SelfContact
+	req.MsgID = NewRandomID()
+	req.Key = searchKey
+	err := client.Call("KademliaCore.FindNode", req, &res)
+	if err != nil || !req.MsgID.Equals(res.MsgID) {
+		fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
+		ok = false
+		return
+	}
+	ok = true
+	return
 }
 
 func (k *Kademlia) DoFindValue(contact *Contact, searchKey ID) string {
 	// TODO: Implement
 	// If all goes well, return "OK: <output>", otherwise print "ERR: <messsage>"
-	return "ERR: Not implemented"
+	//return "ERR: Not implemented"
+	res, ok := k.internalFindValue(contact, searchKey)
+	if !ok {
+		return "ERR: FindValue failed: " + searchKey.AsString()
+	}
+	var buffer bytes.Buffer
+	if res.Value != nil {
+		buffer.WriteString(" Value = " + string(res.Value))
+	} else {
+		for idx, val := range res.Nodes {
+			buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + val.NodeID.AsString() + " => " + contact.Host.String() + ":" + strconv.Itoa(int(contact.Port)))
+		}
+	}
+	return "OK: FindValue result =>" + buffer.String()
 }
 
 func (k *Kademlia) LocalFindValue(searchKey ID) string {
