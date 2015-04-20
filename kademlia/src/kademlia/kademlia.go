@@ -19,6 +19,11 @@ const (
 	k     = 20
 )
 
+type Storage interface {
+	Get(key ID) ([]byte, bool)
+	Put(key ID, value []byte) bool
+}
+
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
 	NodeID         ID
@@ -27,6 +32,7 @@ type Kademlia struct {
 	findChannel    chan routingRequest
 	getLastChannel chan routingRequest
 	routingTable   []*KBucket
+	storage        Storage
 }
 
 type routingRequest struct {
@@ -53,6 +59,7 @@ func NewKademlia(laddr string) *Kademlia {
 	}
 	k.findChannel = make(chan routingRequest)
 	k.getLastChannel = make(chan routingRequest)
+	k.storage = NewLocalStorage()
 
 	// Set up RPC server
 	// NOTE: KademliaCore is just a wrapper around Kademlia. This type includes
@@ -220,7 +227,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) string {
 	//return "ERR: Not implemented"
 	id, ok := k.internalPing(host, port, true)
 	if ok {
-		return id.AsString()
+		return host.String() + ":" + strconv.Itoa(int(port)) + " has NodeID: " + id.AsString()
 	}
 	return "Failed to ping"
 }
@@ -228,7 +235,22 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) string {
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) string {
 	// TODO: Implement
 	// If all goes well, return "OK: <output>", otherwise print "ERR: <messsage>"
-	return "ERR: Not implemented"
+	//return "ERR: Not implemented"
+	client := GetClient(contact.Host, contact.Port)
+	if client == nil {
+		return "Failed to connect to " + contact.NodeID.AsString()
+	}
+	req := new(StoreRequest)
+	req.Sender = k.SelfContact
+	req.MsgID = NewRandomID()
+	req.Key = key
+	req.Value = value
+	var res StoreResult
+	err := client.Call("KademliaCore.Store", req, &res)
+	if err != nil {
+		return "ERR: Store on " + contact.NodeID.AsString() + "(" + contact.Host.String() + ":" + strconv.Itoa(int(contact.Port)) + ") : " + err.Error()
+	}
+	return "OK: " + contact.NodeID.AsString()
 }
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) string {
@@ -246,7 +268,12 @@ func (k *Kademlia) DoFindValue(contact *Contact, searchKey ID) string {
 func (k *Kademlia) LocalFindValue(searchKey ID) string {
 	// TODO: Implement
 	// If all goes well, return "OK: <output>", otherwise print "ERR: <messsage>"
-	return "ERR: Not implemented"
+	//return "ERR: Not implemented"
+	res, ok := k.storage.Get(searchKey)
+	if ok {
+		return "OK: " + searchKey.AsString() + "(" + string(res) + ")"
+	}
+	return "ERR: Key(" + searchKey.AsString() + ") not found"
 }
 
 func (k *Kademlia) DoIterativeFindNode(id ID) string {
