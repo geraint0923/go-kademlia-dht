@@ -16,8 +16,8 @@ import (
 
 const (
 	alpha = 3
-	b     = 8 * IDBytes
-	k     = 20
+	B     = 8 * IDBytes
+	K     = 20
 )
 
 type Storage interface {
@@ -54,7 +54,7 @@ func NewKademlia(laddr string) *Kademlia {
 	k := new(Kademlia)
 	k.NodeID = NewRandomID()
 	k.updateChannel = make(chan Contact, 10)
-	k.routingTable = make([]*KBucket, b)
+	k.routingTable = make([]*KBucket, B)
 	for ii, _ := range k.routingTable {
 		k.routingTable[ii] = NewKBucket()
 	}
@@ -104,7 +104,7 @@ func (k *Kademlia) handleUpdate() {
 				break
 			}
 			idx := k.NodeID.Xor(c.NodeID).PrefixLen()
-			if idx < b {
+			if idx < B {
 				ct, _ := k.routingTable[idx].FindContact(c.NodeID)
 				if ct != nil {
 					k.routingTable[idx].MoveToBack(ct)
@@ -127,7 +127,7 @@ func (k *Kademlia) handleUpdate() {
 		case find := <-k.findChannel:
 			idx := k.NodeID.Xor(find.NodeID).PrefixLen()
 			var ct *Contact = nil
-			if idx < b {
+			if idx < B {
 				ele, _ := k.routingTable[idx].FindContact(find.NodeID)
 				if ele != nil {
 					ct = ele.Value.(*Contact)
@@ -137,6 +137,15 @@ func (k *Kademlia) handleUpdate() {
 		// TODO: handle get last reqeust
 		case get := <-k.getLastChannel:
 			fmt.Println("get: " + get.NodeID.AsString())
+			cl := []Contact{}
+			idx := k.NodeID.Xor(get.NodeID).PrefixLen()
+			for idx >= 0 && get.Count > 0 {
+				tl := k.routingTable[idx].GetLast(get.Count)
+				cl = append(cl, tl...)
+				get.Count -= len(tl)
+				idx -= 1
+			}
+			get.ResponseChannel.(chan []Contact) <- cl
 		// TODO: handle ping response
 		case res := <-responseChannel:
 			if res.Result {
@@ -170,7 +179,7 @@ func (k *Kademlia) findContactFromKRoutingTable(nodeId ID) *Contact {
 
 func (k *Kademlia) getLastContactFromRoutingTable(nodeId ID) (ret []Contact) {
 	resCh := make(chan []Contact)
-	k.getLastChannel <- routingRequest{nodeId, 0, resCh}
+	k.getLastChannel <- routingRequest{nodeId, K, resCh}
 	ret = <-resCh
 	close(resCh)
 	return

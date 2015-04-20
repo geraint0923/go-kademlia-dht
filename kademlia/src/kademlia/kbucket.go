@@ -36,5 +36,5 @@ func (b *KBucket) GetLast(kk int) (ret []Contact) {
 }
 
 func (b *KBucket) Full() bool {
-	return b.Len() >= k
+	return b.Len() >= K
 }
