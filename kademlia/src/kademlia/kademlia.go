@@ -126,11 +126,12 @@ func (k *Kademlia) handleUpdate() {
 		// TODO: handle find request
 		case find := <-k.findChannel:
 			idx := k.NodeID.Xor(find.NodeID).PrefixLen()
-			var ct *Contact = nil
+			var ct *Contact
 			if idx < B {
 				ele, _ := k.routingTable[idx].FindContact(find.NodeID)
 				if ele != nil {
-					ct = ele.Value.(*Contact)
+					tct := ele.Value.(Contact)
+					ct = &tct
 				}
 			}
 			find.ResponseChannel.(chan *Contact) <- ct
@@ -139,6 +140,9 @@ func (k *Kademlia) handleUpdate() {
 			fmt.Println("get: " + get.NodeID.AsString())
 			cl := []Contact{}
 			idx := k.NodeID.Xor(get.NodeID).PrefixLen()
+			if idx >= B {
+				idx = B - 1
+			}
 			for idx >= 0 && get.Count > 0 {
 				tl := k.routingTable[idx].GetLast(get.Count)
 				cl = append(cl, tl...)
@@ -216,6 +220,7 @@ func (k *Kademlia) internalPing(host net.IP, port uint16, update bool) (id ID, o
 		return
 	}
 	pingReq := new(PingMessage)
+	pingReq.Sender = k.SelfContact
 	pingReq.MsgID = NewRandomID()
 	var pong PongMessage
 	err := client.Call("KademliaCore.Ping", pingReq, &pong)
@@ -297,7 +302,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) string {
 	}
 	var buffer bytes.Buffer
 	for idx, val := range res.Nodes {
-		buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + val.NodeID.AsString() + " => " + contact.Host.String() + ":" + strconv.Itoa(int(contact.Port)))
+		buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + val.NodeID.AsString() + " => " + val.Host.String() + ":" + strconv.Itoa(int(val.Port)))
 	}
 	return "OK: FindNode result =>" + buffer.String()
 }

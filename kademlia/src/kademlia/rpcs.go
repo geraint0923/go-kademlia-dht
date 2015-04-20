@@ -6,7 +6,9 @@ package kademlia
 
 import (
 	"errors"
+	"fmt"
 	"net"
+	"strconv"
 )
 
 type KademliaCore struct {
@@ -40,6 +42,7 @@ func (kc *KademliaCore) Ping(ping PingMessage, pong *PongMessage) error {
 	pong.Sender = kc.kademlia.SelfContact
 	// Update contact, etc
 	kc.kademlia.updateChannel <- ping.Sender
+	fmt.Println("hehe: " + ping.Sender.Host.String() + ":" + strconv.Itoa(int(ping.Sender.Port)))
 	return nil
 }
 
