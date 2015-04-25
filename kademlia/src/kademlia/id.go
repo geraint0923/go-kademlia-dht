@@ -54,9 +54,9 @@ func (id ID) Less(other ID) bool {
 // a ID.
 func (id ID) PrefixLen() int {
 	for i := 0; i < IDBytes; i++ {
-		for j := 0; j < 8; j++ {
+		for j := 7; j >= 0; j-- {
 			if (id[i]>>uint8(j))&0x1 != 0 {
-				return (8 * i) + j
+				return (8 * i) + (7 - j)
 			}
 		}
 	}
