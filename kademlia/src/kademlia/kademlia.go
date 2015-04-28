@@ -242,6 +242,20 @@ func (k *Kademlia) findContactFromKRoutingTable(nodeId ID) *Contact {
 	return ct
 }
 
+func filterContactList(cl []Contact, nodeId ID) (ret []Contact) {
+	if cl == nil {
+		ret = nil
+		return
+	}
+	ret = []Contact{}
+	for i := 0; i < len(cl); i++ {
+		if !nodeId.Equals(cl[i].NodeID) {
+			ret = append(ret, cl[i])
+		}
+	}
+	return
+}
+
 func (k *Kademlia) getLastContactFromRoutingTable(nodeId ID) (ret []Contact) {
 	resCh := make(chan []Contact)
 	k.getLastChannel <- routingRequest{nodeId, K, resCh}
@@ -350,6 +364,9 @@ func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNod
 		return
 	}
 	ok = true
+	if res.Nodes != nil {
+		res.Nodes = filterContactList(res.Nodes, k.NodeID)
+	}
 	return
 }
 
@@ -386,6 +403,9 @@ func (k *Kademlia) internalFindValue(contact *Contact, searchKey ID) (res FindVa
 		return
 	}
 	ok = true
+	if res.Nodes != nil {
+		res.Nodes = filterContactList(res.Nodes, k.NodeID)
+	}
 	return
 }
 

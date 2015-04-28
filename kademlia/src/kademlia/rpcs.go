@@ -92,7 +92,7 @@ type FindNodeResult struct {
 func (kc *KademliaCore) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	// TODO: Implement.
 	res.MsgID = req.MsgID
-	res.Nodes = kc.kademlia.getLastContactFromRoutingTable(req.NodeID)
+	res.Nodes = filterContactList(kc.kademlia.getLastContactFromRoutingTable(req.NodeID), req.Sender.NodeID)
 	kc.kademlia.updateChannel <- req.Sender
 	return nil
 }
@@ -124,7 +124,7 @@ func (kc *KademliaCore) FindValue(req FindValueRequest, res *FindValueResult) er
 		res.Nodes = nil
 	} else {
 		res.Value = nil
-		res.Nodes = kc.kademlia.getLastContactFromRoutingTable(req.Key)
+		res.Nodes = filterContactList(kc.kademlia.getLastContactFromRoutingTable(req.Key), req.Sender.NodeID)
 	}
 	res.Err = nil
 	kc.kademlia.updateChannel <- req.Sender
