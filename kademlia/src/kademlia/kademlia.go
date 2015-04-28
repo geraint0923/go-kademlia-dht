@@ -87,7 +87,7 @@ func NewKademlia(laddr string) *Kademlia {
 		}
 	}
 	k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
-	fmt.Println("My ID: " + k.NodeID.AsString())
+	//fmt.Println("My ID: " + k.NodeID.AsString())
 	go k.handleUpdate()
 	return k
 }
@@ -141,9 +141,9 @@ func (k *Kademlia) handleUpdate() {
 		select {
 		// TODO: handle update request
 		case c := <-k.updateChannel:
-			fmt.Println("This is update IP: " + c.Host.String() + ":" + strconv.Itoa(int(c.Port)))
+			//fmt.Println("This is update IP: " + c.Host.String() + ":" + strconv.Itoa(int(c.Port)))
 			if c.NodeID.Equals(k.NodeID) {
-				fmt.Println("**update the self NodeID")
+				//fmt.Println("**update the self NodeID")
 				break
 			}
 			idx := k.NodeID.Xor(c.NodeID).PrefixLen()
@@ -165,7 +165,7 @@ func (k *Kademlia) handleUpdate() {
 				}
 
 			}
-			fmt.Println("**begin to update non-self NodeID")
+			//fmt.Println("**begin to update non-self NodeID")
 		// TODO: handle find request
 		case find := <-k.findChannel:
 			idx := k.NodeID.Xor(find.NodeID).PrefixLen()
@@ -180,7 +180,7 @@ func (k *Kademlia) handleUpdate() {
 			find.ResponseChannel.(chan *Contact) <- ct
 		// TODO: handle get last reqeust
 		case get := <-k.getLastChannel:
-			fmt.Println("get: " + get.NodeID.AsString())
+			//fmt.Println("get: " + get.NodeID.AsString())
 			cl := []Contact{}
 			idx := k.NodeID.Xor(get.NodeID).PrefixLen()
 			if idx >= B {
@@ -214,10 +214,10 @@ func (k *Kademlia) handleUpdate() {
 		// TODO: handle ping response
 		case res := <-responseChannel:
 			if res.Result {
-				fmt.Println("result true")
+				//fmt.Println("result true")
 				res.TargetKBucket.MoveToBack(res.ProbeContact)
 			} else {
-				fmt.Println("result false")
+				//fmt.Println("result false")
 				res.TargetKBucket.Remove(res.ProbeContact)
 				res.TargetKBucket.PushBack(res.ReplaceContact)
 			}
@@ -265,7 +265,7 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 
 func GetClient(host net.IP, port uint16) *rpc.Client {
 	peerStr := host.String() + ":" + strconv.Itoa(int(port))
-	fmt.Println("peerstr:" + peerStr)
+	//fmt.Println("peerstr:" + peerStr)
 	client, err := rpc.DialHTTP("tcp", peerStr)
 	if err != nil {
 		return nil
@@ -335,7 +335,7 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) string {
 func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNodeResult, ok bool) {
 	client := GetClient(contact.Host, contact.Port)
 	if client == nil {
-		fmt.Println("Failed to connect to " + contact.NodeID.AsString())
+		//fmt.Println("Failed to connect to " + contact.NodeID.AsString())
 		ok = false
 		return
 	}
@@ -345,7 +345,7 @@ func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNod
 	req.NodeID = searchKey
 	err := client.Call("KademliaCore.FindNode", req, &res)
 	if err != nil || !req.MsgID.Equals(res.MsgID) {
-		fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
+		//fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
 		ok = false
 		return
 	}
@@ -371,7 +371,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) string {
 func (k *Kademlia) internalFindValue(contact *Contact, searchKey ID) (res FindValueResult, ok bool) {
 	client := GetClient(contact.Host, contact.Port)
 	if client == nil {
-		fmt.Println("Failed to connect to " + contact.NodeID.AsString())
+		//fmt.Println("Failed to connect to " + contact.NodeID.AsString())
 		ok = false
 		return
 	}
@@ -381,7 +381,7 @@ func (k *Kademlia) internalFindValue(contact *Contact, searchKey ID) (res FindVa
 	req.Key = searchKey
 	err := client.Call("KademliaCore.FindValue", req, &res)
 	if err != nil || !req.MsgID.Equals(res.MsgID) {
-		fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
+		//fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
 		ok = false
 		return
 	}

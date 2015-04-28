@@ -2,7 +2,7 @@ package kademlia
 
 import (
 	"container/list"
-	"fmt"
+	//	"fmt"
 )
 
 type KBucket struct {
@@ -16,7 +16,7 @@ func NewKBucket() *KBucket {
 }
 
 func (b *KBucket) FindContact(nodeId ID) (*list.Element, error) {
-	fmt.Println("find => " + nodeId.AsString())
+	//fmt.Println("find => " + nodeId.AsString())
 	for e := b.Front(); e != nil; e = e.Next() {
 		c := e.Value.(Contact)
 		if nodeId.Equals(c.NodeID) {
