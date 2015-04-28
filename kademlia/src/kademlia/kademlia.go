@@ -5,6 +5,7 @@ package kademlia
 
 import (
 	"bytes"
+	"container/heap"
 	"container/list"
 	"fmt"
 	"log"
@@ -91,6 +92,48 @@ func NewKademlia(laddr string) *Kademlia {
 	return k
 }
 
+type ContactHeap struct {
+	List   []Contact
+	NodeID ID
+}
+
+func (h ContactHeap) Len() int {
+	return len(h.List)
+}
+
+func (h ContactHeap) Less(ii, jj int) bool {
+	dist_i := h.NodeID.Xor(h.List[ii].NodeID)
+	dist_j := h.NodeID.Xor(h.List[jj].NodeID)
+	for i := 0; i < IDBytes; i++ {
+		for j := 7; j >= 0; j-- {
+			bit_i := (dist_i[i] >> uint8(j)) & 0x1
+			bit_j := (dist_j[i] >> uint8(j)) & 0x1
+			if bit_i < bit_j {
+				return true
+			} else if bit_j < bit_i {
+				return false
+			}
+		}
+	}
+	return false
+}
+
+func (h ContactHeap) Swap(i, j int) {
+	h.List[i], h.List[j] = h.List[j], h.List[i]
+}
+
+func (h *ContactHeap) Pop() interface{} {
+	old := h.List
+	n := len(old)
+	x := old[n-1]
+	h.List = old[0 : n-1]
+	return x
+}
+
+func (h *ContactHeap) Push(x interface{}) {
+	h.List = append(h.List, x.(Contact))
+}
+
 func (k *Kademlia) handleUpdate() {
 	responseChannel := make(chan probeResult, 10)
 	defer close(responseChannel)
@@ -143,13 +186,31 @@ func (k *Kademlia) handleUpdate() {
 			if idx >= B {
 				idx = B - 1
 			}
-			for idx >= 0 && get.Count > 0 {
-				tl := k.routingTable[idx].GetLast(get.Count)
+			curCount := 0
+			lidx := idx
+			for lidx < B && get.Count > curCount {
+				tl := k.routingTable[lidx].GetLast(K)
 				cl = append(cl, tl...)
-				get.Count -= len(tl)
-				idx -= 1
+				curCount += len(tl)
+				//fmt.Println(lidx)
+				lidx += 1
 			}
-			get.ResponseChannel.(chan []Contact) <- cl
+			lidx = idx - 1
+			for lidx >= 0 && get.Count > curCount {
+				tl := k.routingTable[lidx].GetLast(K)
+				cl = append(cl, tl...)
+				curCount += len(tl)
+				//fmt.Println(lidx)
+				lidx -= 1
+			}
+			cHeap := &ContactHeap{cl, get.NodeID}
+			heap.Init(cHeap)
+			respList := []Contact{}
+			for get.Count > 0 && cHeap.Len() > 0 {
+				respList = append(respList, heap.Pop(cHeap).(Contact))
+				get.Count -= 1
+			}
+			get.ResponseChannel.(chan []Contact) <- respList
 		// TODO: handle ping response
 		case res := <-responseChannel:
 			if res.Result {
