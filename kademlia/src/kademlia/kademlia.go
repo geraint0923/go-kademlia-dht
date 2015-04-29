@@ -50,10 +50,14 @@ type probeResult struct {
 	Result         bool
 }
 
-func NewKademlia(laddr string) *Kademlia {
+func NewKademlia(laddr string, nodeId *ID) *Kademlia {
 	// TODO: Initialize other state here as you add functionality.
 	k := new(Kademlia)
-	k.NodeID = NewRandomID()
+	if nodeId != nil {
+		k.NodeID = *nodeId
+	} else {
+		k.NodeID = NewRandomID()
+	}
 	k.updateChannel = make(chan Contact, 10)
 	k.routingTable = make([]*KBucket, B)
 	for ii, _ := range k.routingTable {
