@@ -105,9 +105,9 @@ func (h ContactHeap) Len() int {
 	return len(h.List)
 }
 
-func (h ContactHeap) Less(ii, jj int) bool {
-	dist_i := h.NodeID.Xor(h.List[ii].NodeID)
-	dist_j := h.NodeID.Xor(h.List[jj].NodeID)
+func contactLess(c1, c2 *Contact, key ID) bool {
+	dist_i := key.Xor(c1.NodeID)
+	dist_j := key.Xor(c2.NodeID)
 	for i := 0; i < IDBytes; i++ {
 		for j := 7; j >= 0; j-- {
 			bit_i := (dist_i[i] >> uint8(j)) & 0x1
@@ -120,6 +120,18 @@ func (h ContactHeap) Less(ii, jj int) bool {
 		}
 	}
 	return false
+}
+
+func minContact(c1, c2 Contact, key ID) Contact {
+	// TODO: return the Contact with less distance
+	if contactLess(&c1, &c2, key) {
+		return c1
+	}
+	return c2
+}
+
+func (h ContactHeap) Less(ii, jj int) bool {
+	return contactLess(&h.List[ii], &h.List[jj], h.NodeID)
 }
 
 func (h ContactHeap) Swap(i, j int) {
@@ -441,6 +453,110 @@ func (k *Kademlia) LocalFindValue(searchKey ID) string {
 		return "OK: " + searchKey.AsString() + "(" + string(res) + ")"
 	}
 	return "ERR: Key(" + searchKey.AsString() + ") not found"
+}
+
+type iterativeResult struct {
+	success           bool
+	target            Contact
+	activeContactList []Contact
+	value             []byte
+}
+
+func (k *Kademlia) doFind(target Contact, key ID, findValue bool, respCh chan iterativeResult) {
+	res := iterativeResult{
+		success:           false,
+		target:            target,
+		activeContactList: []Contact{},
+		value:             nil,
+	}
+	if findValue {
+		resp, ok := k.internalFindValue(&target, key)
+		if ok {
+			res.success = true
+			if resp.Value != nil {
+				res.value = resp.Value
+			} else if resp.Nodes != nil {
+				res.activeContactList = append(res.activeContactList, resp.Nodes...)
+			}
+		}
+	} else {
+		resp, ok := k.internalFindNode(&target, key)
+		if ok {
+			res.success = true
+			if resp.Nodes != nil {
+				res.activeContactList = append(res.activeContactList, resp.Nodes...)
+			}
+		}
+	}
+	respCh <- res
+}
+
+func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResult) {
+	ret.success = true
+	ret.target = k.SelfContact
+	ret.activeContactList = []Contact{}
+	ret.value = nil
+
+	shortList := k.getLastContactFromRoutingTable(key)
+	if shortList == nil || len(shortList) == 0 {
+		return
+	}
+	lastClosestNode := k.SelfContact
+	closestNode := shortList[0]
+	activeNodes := []Contact{}
+	nodesMap := make(map[string]bool)
+
+	if len(shortList) > 3 {
+		shortList = shortList[:alpha]
+	}
+	// add short list nodes to set
+	for _, con := range shortList {
+		nodesMap[con.NodeID.AsString()] = true
+	}
+	cHeap := &ContactHeap{shortList, key}
+	heap.Init(cHeap)
+
+	for !closestNode.NodeID.Equals(lastClosestNode.NodeID) && len(activeNodes) < K && ret.value == nil && cHeap.Len() > 0 {
+		parallel := 0
+		respChannel := make(chan iterativeResult)
+		for parallel < alpha && cHeap.Len() > 0 {
+			con := heap.Pop(cHeap).(Contact)
+			go k.doFind(con, key, findValue, respChannel)
+			parallel++
+		}
+		for count := 0; count < parallel; count++ {
+			resp := <-respChannel
+			if resp.success {
+				activeNodes = append(activeNodes, resp.target)
+				if findValue && resp.value != nil {
+					ret.value = resp.value
+				} else if resp.activeContactList != nil {
+					for _, con := range resp.activeContactList {
+						if _, ok := nodesMap[con.NodeID.AsString()]; !ok {
+							nodesMap[con.NodeID.AsString()] = true
+							heap.Push(cHeap, con)
+						}
+					}
+				}
+			}
+		}
+		lastClosestNode = closestNode
+		if cHeap.Len() > 0 {
+			// update the closest node
+			currentMin := cHeap.List[0]
+			closestNode = minContact(closestNode, currentMin, key)
+		}
+		close(respChannel)
+	}
+
+	if len(activeNodes) < K {
+		if findValue && ret.value != nil {
+			ret.activeContactList = nil
+		} else {
+			// TODO: query all the uncontacted contacts
+		}
+	}
+	return
 }
 
 func (k *Kademlia) DoIterativeFindNode(id ID) string {
