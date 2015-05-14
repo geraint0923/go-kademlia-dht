@@ -35,6 +35,8 @@ type Kademlia struct {
 	getLastChannel chan routingRequest
 	routingTable   []*KBucket
 	storage        Storage
+	server         *rpc.Server
+	listener       net.Listener
 }
 
 type routingRequest struct {
@@ -87,8 +89,10 @@ func NewKademlia(laddr string, nodeId *ID) *Kademlia {
 	if err != nil {
 		log.Fatal("Listen: ", err)
 	}
+	k.listener = l
 	// Run RPC server forever.
 	go http.Serve(l, nil)
+	k.server = s
 
 	// Add self contact
 	hostname, port, _ := net.SplitHostPort(l.Addr().String())
@@ -105,6 +109,9 @@ func NewKademlia(laddr string, nodeId *ID) *Kademlia {
 	//fmt.Println("My ID: " + k.NodeID.AsString())
 	go k.handleUpdate()
 	return k
+}
+
+func (k *Kademlia) Close() {
 }
 
 type ContactHeap struct {
@@ -326,6 +333,7 @@ func (k *Kademlia) internalPing(host net.IP, port uint16, update bool) (id ID, o
 		ok = false
 		return
 	}
+	defer client.Close()
 	pingReq := new(PingMessage)
 	pingReq.Sender = k.SelfContact
 	pingReq.MsgID = NewRandomID()
@@ -362,6 +370,7 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) string {
 	if client == nil {
 		return "Failed to connect to " + contact.NodeID.AsString()
 	}
+	defer client.Close()
 	req := new(StoreRequest)
 	req.Sender = k.SelfContact
 	req.MsgID = NewRandomID()
@@ -385,6 +394,7 @@ func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNod
 		ok = false
 		return
 	}
+	defer client.Close()
 	req := new(FindNodeRequest)
 	req.Sender = k.SelfContact
 	req.MsgID = NewRandomID()
@@ -432,6 +442,7 @@ func (k *Kademlia) internalFindValue(contact *Contact, searchKey ID) (res FindVa
 		ok = false
 		return
 	}
+	defer client.Close()
 	req := new(FindValueRequest)
 	req.Sender = k.SelfContact
 	req.MsgID = NewRandomID()

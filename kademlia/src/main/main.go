@@ -52,6 +52,7 @@ func main() {
 	ping.MsgID = kademlia.NewRandomID()
 	var pong kademlia.PongMessage
 	err = client.Call("KademliaCore.Ping", ping, &pong)
+	client.Close()
 	if err != nil {
 		log.Fatal("Call: ", err)
 	}
