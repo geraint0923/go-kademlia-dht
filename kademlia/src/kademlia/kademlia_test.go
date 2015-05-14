@@ -335,6 +335,29 @@ func TestIterativeFindValue(t *testing.T) {
 }
 
 func TestIterativeStore(t *testing.T) {
+	kNum := 120
+	targetIdx := kNum - 23
+	treeList := GenerateTreeIDList(kNum)
+	kList, _ := GenerateTestList(kNum, treeList)
+	for i := 1; i < kNum; i++ {
+		kList.ConnectTo(i, i/divNum)
+	}
+	time.Sleep(100 * time.Millisecond)
+	searchKey := kList[targetIdx].SelfContact.NodeID
+	searchKey[IDBytes-1] = 0
+	randValue := []byte(NewRandomID().AsString())
+	// do the iterativeStore
+	_, _ = kList[0].DoIterativeStore(searchKey, randValue)
+	// retrive the value from target node
+	_, retVal := kList[targetIdx].LocalFindValue(searchKey)
+	if retVal == nil {
+		t.Error("The target node should have the key/value pair")
+		return
+	}
+	if string(retVal) != string(randValue) {
+		t.Error("The stored value should equal to each other")
+		return
+	}
 	t.Log("TestIterativeStore done successfully!\n")
 	return
 }
