@@ -296,7 +296,7 @@ func filterContactList(cl []Contact, nodeId ID) (ret []Contact) {
 
 func (k *Kademlia) getLastContactFromRoutingTable(nodeId ID) (ret []Contact) {
 	resCh := make(chan []Contact)
-	k.getLastChannel <- routingRequest{nodeId, K, resCh}
+	k.getLastChannel <- routingRequest{nodeId, K + 2, resCh}
 	ret = <-resCh
 	close(resCh)
 	return

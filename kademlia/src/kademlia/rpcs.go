@@ -93,6 +93,9 @@ func (kc *KademliaCore) FindNode(req FindNodeRequest, res *FindNodeResult) error
 	// TODO: Implement.
 	res.MsgID = req.MsgID
 	res.Nodes = filterContactList(kc.kademlia.getLastContactFromRoutingTable(req.NodeID), req.Sender.NodeID)
+	if res.Nodes != nil && len(res.Nodes) > K {
+		res.Nodes = res.Nodes[:K]
+	}
 	kc.kademlia.updateChannel <- req.Sender
 	return nil
 }
