@@ -494,7 +494,7 @@ func (k *Kademlia) doFind(target Contact, key ID, findValue bool, respCh chan it
 func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResult) {
 	ret.success = true
 	ret.target = k.SelfContact
-	ret.activeContactList = []Contact{}
+	ret.activeContactList = nil
 	ret.value = nil
 
 	shortList := k.getLastContactFromRoutingTable(key)
@@ -516,6 +516,7 @@ func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResul
 	cHeap := &ContactHeap{shortList, key}
 	heap.Init(cHeap)
 
+	// iterative loop
 	for !closestNode.NodeID.Equals(lastClosestNode.NodeID) && len(activeNodes) < K && ret.value == nil && cHeap.Len() > 0 {
 		parallel := 0
 		respChannel := make(chan iterativeResult)
@@ -529,6 +530,7 @@ func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResul
 			if resp.success {
 				activeNodes = append(activeNodes, resp.target)
 				if findValue && resp.value != nil {
+					ret.target = resp.target
 					ret.value = resp.value
 				} else if resp.activeContactList != nil {
 					for _, con := range resp.activeContactList {
@@ -554,6 +556,33 @@ func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResul
 			ret.activeContactList = nil
 		} else {
 			// TODO: query all the uncontacted contacts
+			queryCount := 0
+			respChannel := make(chan iterativeResult)
+			for cHeap.Len() > 0 {
+				con := heap.Pop(cHeap).(Contact)
+				go k.doFind(con, key, findValue, respChannel)
+				queryCount++
+			}
+			for idx := 0; idx < queryCount; idx++ {
+				resp := <-respChannel
+				if resp.success {
+					activeNodes = append(activeNodes, resp.target)
+					if findValue && resp.value != nil {
+						ret.value = resp.value
+					}
+				}
+			}
+		}
+	}
+	if findValue && ret.value != nil {
+		ret.activeContactList = nil
+	} else {
+		cHeap = &ContactHeap{activeNodes, key}
+		heap.Init(cHeap)
+		ret.activeContactList = []Contact{}
+		for cHeap.Len() > 0 {
+			con := heap.Pop(cHeap).(Contact)
+			ret.activeContactList = append(ret.activeContactList, con)
 		}
 	}
 	return
@@ -561,13 +590,31 @@ func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResul
 
 func (k *Kademlia) DoIterativeFindNode(id ID) string {
 	// For project 2!
-	return "ERR: Not implemented"
+	//return "ERR: Not implemented"
+	var buffer bytes.Buffer
+	resp := k.internalIterative(id, true)
+	for idx, con := range resp.activeContactList {
+		buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + con.NodeID.AsString() + " => " + con.Host.String() + ":" + strconv.Itoa(int(con.Port)))
+	}
+	return buffer.String()
 }
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) string {
 	// For project 2!
-	return "ERR: Not implemented"
+	//return "ERR: Not implemented"
+	var buffer bytes.Buffer
+	resp := k.internalIterative(key, true)
+	for idx, con := range resp.activeContactList {
+		k.DoStore(&con, key, value)
+		buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + con.NodeID.AsString() + " => " + con.Host.String() + ":" + strconv.Itoa(int(con.Port)))
+	}
+	return buffer.String()
 }
 func (k *Kademlia) DoIterativeFindValue(key ID) string {
 	// For project 2!
-	return "ERR: Not implemented"
+	//return "ERR: Not implemented"
+	resp := k.internalIterative(key, true)
+	if resp.value != nil {
+		return resp.target.NodeID.AsString() + " => " + string(resp.value)
+	}
+	return "ERR"
 }
