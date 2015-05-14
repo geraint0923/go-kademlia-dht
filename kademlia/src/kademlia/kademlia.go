@@ -378,34 +378,39 @@ func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNod
 	req.MsgID = NewRandomID()
 	req.NodeID = searchKey
 	err := client.Call("KademliaCore.FindNode", req, &res)
+	fmt.Println("res non nil00")
 	if err != nil || !req.MsgID.Equals(res.MsgID) {
+		fmt.Println("res non nil11")
 		//fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
 		ok = false
 		return
 	}
 	ok = true
+	//	fmt.Println("res non nil22")
 	if res.Nodes != nil {
+		fmt.Println("res non nil")
 		res.Nodes = filterContactList(res.Nodes, k.NodeID)
 		for _, con := range res.Nodes {
+			//			fmt.Println("update contact => " + con.NodeID.AsString())
 			k.updateChannel <- con
 		}
 	}
 	return
 }
 
-func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) string {
+func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) (string, []Contact) {
 	// TODO: Implement
 	// If all goes well, return "OK: <output>", otherwise print "ERR: <messsage>"
 	//return "ERR: Not implemented"
 	res, ok := k.internalFindNode(contact, searchKey)
 	if !ok {
-		return "ERR: FindNode failed: " + searchKey.AsString()
+		return "ERR: FindNode failed: " + searchKey.AsString(), nil
 	}
 	var buffer bytes.Buffer
 	for idx, val := range res.Nodes {
 		buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + val.NodeID.AsString() + " => " + val.Host.String() + ":" + strconv.Itoa(int(val.Port)))
 	}
-	return "OK: FindNode result =>" + buffer.String()
+	return "OK: FindNode result =>" + buffer.String(), res.Nodes
 }
 
 func (k *Kademlia) internalFindValue(contact *Contact, searchKey ID) (res FindValueResult, ok bool) {
@@ -428,17 +433,21 @@ func (k *Kademlia) internalFindValue(contact *Contact, searchKey ID) (res FindVa
 	ok = true
 	if res.Nodes != nil {
 		res.Nodes = filterContactList(res.Nodes, k.NodeID)
+		for _, con := range res.Nodes {
+			//			fmt.Println("update contact => " + con.NodeID.AsString())
+			k.updateChannel <- con
+		}
 	}
 	return
 }
 
-func (k *Kademlia) DoFindValue(contact *Contact, searchKey ID) string {
+func (k *Kademlia) DoFindValue(contact *Contact, searchKey ID) (string, []byte, []Contact) {
 	// TODO: Implement
 	// If all goes well, return "OK: <output>", otherwise print "ERR: <messsage>"
 	//return "ERR: Not implemented"
 	res, ok := k.internalFindValue(contact, searchKey)
 	if !ok {
-		return "ERR: FindValue failed: " + searchKey.AsString()
+		return "ERR: FindValue failed: " + searchKey.AsString(), nil, nil
 	}
 	var buffer bytes.Buffer
 	if res.Value != nil {
@@ -448,18 +457,18 @@ func (k *Kademlia) DoFindValue(contact *Contact, searchKey ID) string {
 			buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + val.NodeID.AsString() + " => " + val.Host.String() + ":" + strconv.Itoa(int(val.Port)))
 		}
 	}
-	return "OK: FindValue result =>" + buffer.String()
+	return "OK: FindValue result =>" + buffer.String(), res.Value, res.Nodes
 }
 
-func (k *Kademlia) LocalFindValue(searchKey ID) string {
+func (k *Kademlia) LocalFindValue(searchKey ID) (string, []byte) {
 	// TODO: Implement
 	// If all goes well, return "OK: <output>", otherwise print "ERR: <messsage>"
 	//return "ERR: Not implemented"
 	res, ok := k.storage.Get(searchKey)
 	if ok {
-		return "OK: " + searchKey.AsString() + "(" + string(res) + ")"
+		return "OK: " + searchKey.AsString() + "(" + string(res) + ")", res
 	}
-	return "ERR: Key(" + searchKey.AsString() + ") not found"
+	return "ERR: Key(" + searchKey.AsString() + ") not found", nil
 }
 
 type iterativeResult struct {
@@ -477,6 +486,7 @@ func (k *Kademlia) doFind(target Contact, key ID, findValue bool, respCh chan it
 		value:             nil,
 	}
 	if findValue {
+		//		fmt.Println("calling internalFindNode")
 		resp, ok := k.internalFindValue(&target, key)
 		if ok {
 			res.success = true
@@ -525,18 +535,21 @@ func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResul
 
 	// iterative loop
 	for !closestNode.NodeID.Equals(lastClosestNode.NodeID) && len(activeNodes) < K && ret.value == nil && cHeap.Len() > 0 {
-		parallel := 0
+		var parallel int
 		respChannel := make(chan iterativeResult)
-		for parallel < alpha && cHeap.Len() > 0 {
+		for parallel = 0; parallel < alpha && cHeap.Len() > 0; parallel++ {
 			con := heap.Pop(cHeap).(Contact)
+			//			fmt.Println(strconv.Itoa(parallel) + " 0=> " + con.NodeID.AsString())
 			go k.doFind(con, key, findValue, respChannel)
-			parallel++
+			//			fmt.Println(strconv.Itoa(parallel) + " 1=> " + con.NodeID.AsString())
 		}
+		//		fmt.Println(strconv.Itoa(parallel) + " hehe ***")
 		for count := 0; count < parallel; count++ {
 			resp := <-respChannel
 			if resp.success {
 				activeNodes = append(activeNodes, resp.target)
 				if findValue && resp.value != nil {
+					//					fmt.Println(" => " + resp.target.NodeID.AsString())
 					ret.target = resp.target
 					ret.value = resp.value
 				} else if resp.activeContactList != nil {
@@ -595,33 +608,33 @@ func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResul
 	return
 }
 
-func (k *Kademlia) DoIterativeFindNode(id ID) string {
+func (k *Kademlia) DoIterativeFindNode(id ID) (string, []Contact) {
 	// For project 2!
 	//return "ERR: Not implemented"
 	var buffer bytes.Buffer
-	resp := k.internalIterative(id, true)
+	resp := k.internalIterative(id, false)
 	for idx, con := range resp.activeContactList {
 		buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + con.NodeID.AsString() + " => " + con.Host.String() + ":" + strconv.Itoa(int(con.Port)))
 	}
-	return buffer.String()
+	return buffer.String(), resp.activeContactList
 }
-func (k *Kademlia) DoIterativeStore(key ID, value []byte) string {
+func (k *Kademlia) DoIterativeStore(key ID, value []byte) (string, []Contact) {
 	// For project 2!
 	//return "ERR: Not implemented"
 	var buffer bytes.Buffer
-	resp := k.internalIterative(key, true)
+	resp := k.internalIterative(key, false)
 	for idx, con := range resp.activeContactList {
 		k.DoStore(&con, key, value)
 		buffer.WriteString("\n[" + strconv.Itoa(idx) + "] NodeID: " + con.NodeID.AsString() + " => " + con.Host.String() + ":" + strconv.Itoa(int(con.Port)))
 	}
-	return buffer.String()
+	return buffer.String(), resp.activeContactList
 }
-func (k *Kademlia) DoIterativeFindValue(key ID) string {
+func (k *Kademlia) DoIterativeFindValue(key ID) (string, []byte, []Contact) {
 	// For project 2!
 	//return "ERR: Not implemented"
 	resp := k.internalIterative(key, true)
 	if resp.value != nil {
-		return resp.target.NodeID.AsString() + " => " + string(resp.value)
+		return resp.target.NodeID.AsString() + " => " + string(resp.value), resp.value, nil
 	}
-	return "ERR"
+	return "ERR", resp.value, resp.activeContactList
 }
