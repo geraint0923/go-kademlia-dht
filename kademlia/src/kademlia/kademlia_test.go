@@ -4,6 +4,7 @@ import (
 	"net"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func StringToIpPort(laddr string) (ip net.IP, port uint16, err error) {
@@ -31,6 +32,7 @@ func TestPing(t *testing.T) {
 	instance2 := NewKademlia("localhost:7891", nil)
 	host2, port2, _ := StringToIpPort("localhost:7891")
 	instance1.DoPing(host2, port2)
+	time.Sleep(30 * time.Millisecond)
 	contact2, err := instance1.FindContact(instance2.NodeID)
 	if err != nil {
 		t.Error("Instance 2's contact not found in Instance 1's contact list")
