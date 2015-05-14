@@ -15,13 +15,26 @@ const testAddr = "localhost"
 
 type KademliaList []*Kademlia
 
-func GenerateTestList(num int) (kRet KademliaList, cRet []Contact) {
+func GenerateIDList(num int) (ret []ID) {
+	ret = make([]ID, num)
+	for i := 0; i < num; i++ {
+		ret[i] = NewRandomID()
+	}
+	return
+}
+
+func GenerateTestList(num int, idList []ID) (kRet KademliaList, cRet []Contact) {
 	kRet = []*Kademlia{}
 	cRet = []Contact{}
 	for i := 0; i < num; i++ {
 		laddr := testAddr + ":" + strconv.Itoa(int(testPort))
 		testPort++
-		k := NewKademlia(laddr, nil)
+		var k *Kademlia
+		if idList != nil && i < len(idList) {
+			k = NewKademlia(laddr, &idList[i])
+		} else {
+			k = NewKademlia(laddr, nil)
+		}
 		cRet = append(cRet, k.SelfContact)
 		kRet = append(kRet, k)
 	}
@@ -166,7 +179,7 @@ func TestStore(t *testing.T) {
 func TestFindNode(t *testing.T) {
 	kNum := K - 3
 	testIdx := kNum/3 + 1
-	kList, cList := GenerateTestList(kNum)
+	kList, cList := GenerateTestList(kNum, nil)
 	for i := 1; i < kNum; i++ {
 		kList.ConnectTo(i, 0)
 	}
@@ -180,6 +193,39 @@ func TestFindNode(t *testing.T) {
 	sortedList := SortContact(cList[1:], kList[testIdx].SelfContact.NodeID)[1 : kNum-2+1]
 	if len(ret) < len(sortedList) {
 		t.Error("The number of returned contacts is less than " + strconv.Itoa(len(sortedList)) + ": " + strconv.Itoa(len(ret)))
+		return
+	}
+	ret = SortContact(ret, kList[testIdx].SelfContact.NodeID)
+	for idx := range sortedList {
+		if !ret[idx].NodeID.Equals(sortedList[idx].NodeID) {
+			t.Error(strconv.Itoa(idx) + " => NodeID not equal: " + ret[idx].NodeID.AsString() + "!=" + sortedList[idx].NodeID.AsString())
+			t.Error(CompareContactList(sortedList, ret))
+			t.Error("Source NodeID => " + kList[testIdx].SelfContact.NodeID.AsString())
+			t.Error("Dest NodeID => " + kList[0].SelfContact.NodeID.AsString())
+			return
+		}
+	}
+	t.Log("TestFindNode done successfully!\n")
+	return
+}
+
+func TestFindNodeLarge(t *testing.T) {
+	kNum := K * 5
+	testIdx := kNum/3 + 1
+	kList, cList := GenerateTestList(kNum, nil)
+	for i := 1; i < kNum; i++ {
+		kList.ConnectTo(i, 0)
+	}
+	// wait for the completion of DoPing
+	time.Sleep(100 * time.Millisecond)
+	_, ret := kList[testIdx].DoFindNode(&kList[0].SelfContact, kList[testIdx].SelfContact.NodeID)
+	if ret == nil {
+		t.Error("The return of DoFindNode is nil!")
+		return
+	}
+	sortedList := SortContact(cList[1:], kList[testIdx].SelfContact.NodeID)[1 : K+1]
+	if len(ret) < K {
+		t.Error("The number of returned contacts is less than " + strconv.Itoa(K) + ": " + strconv.Itoa(len(ret)))
 		return
 	}
 	ret = SortContact(ret, kList[testIdx].SelfContact.NodeID)
