@@ -274,8 +274,27 @@ func TestFindNodeLargeAndKBucket(t *testing.T) {
 	return
 }
 
-func TestFindValue(t *testing.T) {
-	t.Log("TestFindValue done successfully!\n")
+func TestFindValueFound(t *testing.T) {
+	kNum := 3
+	kList, cList := GenerateTestList(kNum, nil)
+	kList.ConnectTo(0, 2)
+	kList.ConnectTo(1, 2)
+	randKey := NewRandomID()
+	randVal := []byte(NewRandomID().AsString())
+	_ = kList[0].DoStore(&cList[2], randKey, randVal)
+	time.Sleep(3 * time.Millisecond)
+	_, retVal, _ := kList[1].DoFindValue(&cList[2], randKey)
+	if retVal == nil {
+		t.Error("The returned value is nil but it should not be.")
+		return
+	}
+	if string(retVal) != string(randVal) {
+		t.Error("The returned value should equal to the stored value.")
+		t.Error("returned value => " + string(retVal))
+		t.Error("correct value => " + string(randVal))
+		return
+	}
+	t.Log("TestFindValueFound done successfully!\n")
 	return
 }
 
