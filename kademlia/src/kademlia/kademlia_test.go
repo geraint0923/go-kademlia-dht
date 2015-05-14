@@ -12,15 +12,31 @@ import (
 var testPort uint16 = 3000
 
 const testAddr = "localhost"
+const divNum = 3
 
 type KademliaList []*Kademlia
 
-func GenerateIDList(num int) (ret []ID) {
+func GenerateRandomIDList(num int) (ret []ID) {
 	ret = make([]ID, num)
 	for i := 0; i < num; i++ {
 		ret[i] = NewRandomID()
 	}
 	return
+}
+
+func GenerateTreeIDList(num int) (ret []ID) {
+	ret = make([]ID, num)
+	ret[0] = NewRandomID()
+	for i := 1; i < num; i++ {
+		if i > 150 {
+			ret[i] = NewRandomID()
+		} else {
+			curID := ret[i/divNum]
+			curID[i/8] = curID[i/8] ^ (1 << uint8(7-(i%8)))
+			ret[i] = curID
+		}
+	}
+	return ret
 }
 
 func GenerateTestList(num int, idList []ID) (kRet KademliaList, cRet []Contact) {
@@ -209,26 +225,42 @@ func TestFindNode(t *testing.T) {
 	return
 }
 
-func TestFindNodeLarge(t *testing.T) {
+func TestFindNodeLargeAndKBucket(t *testing.T) {
 	kNum := K * 5
-	testIdx := kNum/3 + 1
-	kList, cList := GenerateTestList(kNum, nil)
+	testIdx := kNum/5*4 + 1
+	idList := GenerateRandomIDList(kNum)
+	// the first 2*K contacts should be in the same KBucket
+	// however, only the first K contacts are able to reamin
+	for i := 0; i < K*2; i++ {
+		idList[i][0] = 0
+		idList[i][1] = 0xef
+	}
+	idList[0][1] = 0xff
+	for i := K * 2; i < kNum; i++ {
+		idList[i][0] = 1
+	}
+	kList, cList := GenerateTestList(kNum, idList)
 	for i := 1; i < kNum; i++ {
 		kList.ConnectTo(i, 0)
+		if i < K*2 {
+			// make sure that the contact has hit the kbuckets
+			time.Sleep(3 * time.Millisecond)
+		}
 	}
 	// wait for the completion of DoPing
 	time.Sleep(100 * time.Millisecond)
-	_, ret := kList[testIdx].DoFindNode(&kList[0].SelfContact, kList[testIdx].SelfContact.NodeID)
+	_, ret := kList[testIdx].DoFindNode(&kList[0].SelfContact, kList[1].SelfContact.NodeID)
 	if ret == nil {
 		t.Error("The return of DoFindNode is nil!")
 		return
 	}
-	sortedList := SortContact(cList[1:], kList[testIdx].SelfContact.NodeID)[1 : K+1]
+	// only the first K contacts(except the one indexed zero) remain in KBucket
+	sortedList := SortContact(cList[1:K+1], kList[1].SelfContact.NodeID)
 	if len(ret) < K {
 		t.Error("The number of returned contacts is less than " + strconv.Itoa(K) + ": " + strconv.Itoa(len(ret)))
 		return
 	}
-	ret = SortContact(ret, kList[testIdx].SelfContact.NodeID)
+	ret = SortContact(ret, kList[1].SelfContact.NodeID)
 	for idx := range sortedList {
 		if !ret[idx].NodeID.Equals(sortedList[idx].NodeID) {
 			t.Error(strconv.Itoa(idx) + " => NodeID not equal: " + ret[idx].NodeID.AsString() + "!=" + sortedList[idx].NodeID.AsString())
@@ -248,11 +280,56 @@ func TestFindValue(t *testing.T) {
 }
 
 func TestIterativeFindNode(t *testing.T) {
+	kNum := 120
+	targetIdx := kNum - 23
+	treeList := GenerateTreeIDList(kNum)
+	kList, _ := GenerateTestList(kNum, treeList)
+	for i := 1; i < kNum; i++ {
+		kList.ConnectTo(i, i/divNum)
+	}
+	time.Sleep(100 * time.Millisecond)
+	searchKey := kList[targetIdx].SelfContact.NodeID
+	searchKey[IDBytes-1] = 0
+	_, res := kList[0].DoIterativeFindNode(searchKey)
+	res = SortContact(res, searchKey)
+	if !res[0].NodeID.Equals(kList[targetIdx].SelfContact.NodeID) {
+		t.Error("Search result doesn't match: " + res[0].NodeID.AsString() + "!=" + kList[targetIdx].SelfContact.NodeID.AsString())
+	}
 	t.Log("TestIterativeFindNode done successfully!\n")
 	return
 }
 
 func TestIterativeFindValue(t *testing.T) {
+	kNum := 120
+	targetIdx := kNum - 23
+	treeList := GenerateTreeIDList(kNum)
+	kList, _ := GenerateTestList(kNum, treeList)
+	for i := 1; i < kNum; i++ {
+		kList.ConnectTo(i, i/divNum)
+	}
+	time.Sleep(100 * time.Millisecond)
+	searchKey := kList[targetIdx].SelfContact.NodeID
+	searchKey[IDBytes-1] = 0
+	randValue := []byte(NewRandomID().AsString())
+	kList[targetIdx/divNum].DoStore(&kList[targetIdx].SelfContact, searchKey, randValue)
+	time.Sleep(3 * time.Millisecond)
+	_, retVal := kList[targetIdx].LocalFindValue(searchKey)
+	if retVal == nil {
+		t.Error("The target node should have the key/value pair")
+		return
+	}
+	if string(retVal) != string(randValue) {
+		t.Error("The stored value should equal to each other")
+		return
+	}
+	_, res, _ := kList[0].DoIterativeFindValue(searchKey)
+	if res == nil {
+		t.Error("The coressponding value should be found")
+		return
+	}
+	if string(res) != string(randValue) {
+		t.Error("Search result doesn't match: " + string(res) + "!=" + string(randValue))
+	}
 	t.Log("TestIterativeFindValue done successfully!\n")
 	return
 }
