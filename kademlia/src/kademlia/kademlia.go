@@ -70,8 +70,19 @@ func NewKademlia(laddr string, nodeId *ID) *Kademlia {
 	// Set up RPC server
 	// NOTE: KademliaCore is just a wrapper around Kademlia. This type includes
 	// the RPC functions.
-	rpc.Register(&KademliaCore{k})
-	rpc.HandleHTTP()
+	/*
+		rpc.Register(&KademliaCore{k})
+		rpc.HandleHTTP()
+		l, err := net.Listen("tcp", laddr)
+		if err != nil {
+			log.Fatal("Listen: ", err)
+		}
+	*/
+	s := rpc.NewServer()
+	s.Register(&KademliaCore{k})
+	_, port, _ := net.SplitHostPort(laddr)                           // extract just the port number
+	s.HandleHTTP(rpc.DefaultRPCPath+port, rpc.DefaultDebugPath+port) // I'm making a unique RPC path for this instance of Kademlia
+
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		log.Fatal("Listen: ", err)
@@ -300,7 +311,8 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 func GetClient(host net.IP, port uint16) *rpc.Client {
 	peerStr := host.String() + ":" + strconv.Itoa(int(port))
 	//fmt.Println("peerstr:" + peerStr)
-	client, err := rpc.DialHTTP("tcp", peerStr)
+	//client, err := rpc.DialHTTP("tcp", peerStr)
+	client, err := rpc.DialHTTPPath("tcp", peerStr, rpc.DefaultRPCPath+strconv.Itoa(int(port)))
 	if err != nil {
 		return nil
 	}

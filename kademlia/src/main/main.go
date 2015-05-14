@@ -40,7 +40,9 @@ func main() {
 	// Confirm our server is up with a PING request and then exit.
 	// Your code should loop forever, reading instructions from stdin and
 	// printing their results to stdout. See README.txt for more details.
-	client, err := rpc.DialHTTP("tcp", firstPeerStr)
+	_, port, _ := net.SplitHostPort(firstPeerStr)
+	client, err := rpc.DialHTTPPath("tcp", firstPeerStr, rpc.DefaultRPCPath+port)
+	//client, err := rpc.DialHTTP("tcp", firstPeerStr)
 	if err != nil {
 		log.Fatal("DialHTTP: ", err)
 	}
