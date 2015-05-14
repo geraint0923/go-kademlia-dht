@@ -150,6 +150,10 @@ func (h *ContactHeap) Push(x interface{}) {
 	h.List = append(h.List, x.(Contact))
 }
 
+func (k *Kademlia) AddContact(con Contact) {
+	k.updateChannel <- con
+}
+
 func (k *Kademlia) handleUpdate() {
 	responseChannel := make(chan probeResult, 10)
 	defer close(responseChannel)
@@ -382,6 +386,9 @@ func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNod
 	ok = true
 	if res.Nodes != nil {
 		res.Nodes = filterContactList(res.Nodes, k.NodeID)
+		for _, con := range res.Nodes {
+			k.updateChannel <- con
+		}
 	}
 	return
 }
