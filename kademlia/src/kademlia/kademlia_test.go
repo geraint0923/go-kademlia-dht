@@ -298,6 +298,40 @@ func TestFindValueFound(t *testing.T) {
 	return
 }
 
+func TestFindValueNotFound(t *testing.T) {
+	kNum := 3
+	kList, cList := GenerateTestList(kNum, nil)
+	kList.ConnectTo(0, 2)
+	kList.ConnectTo(1, 2)
+	randKey := NewRandomID()
+	fakeKey := randKey
+	fakeKey[IDBytes-1] = fakeKey[IDBytes-1] ^ 0xff
+	randVal := []byte(NewRandomID().AsString())
+	_ = kList[0].DoStore(&cList[2], randKey, randVal)
+	time.Sleep(3 * time.Millisecond)
+	_, retVal, retContacts := kList[1].DoFindValue(&cList[2], fakeKey)
+	if retVal != nil {
+		t.Error("The returned value should be nil but it is not.")
+		return
+	}
+	if retContacts == nil {
+		t.Error("The returned contacts list should not be nil but it is.")
+		return
+	}
+	if len(retContacts) != 1 {
+		t.Error("The length of returned contacts list should be 1 but it is not: " + strconv.Itoa(len(retContacts)))
+		return
+	}
+	if !retContacts[0].NodeID.Equals(kList[0].NodeID) {
+		t.Error("The only returned contact should be the third one except initiator and recepient but it is not")
+		t.Error("The only returned contact NodeID => " + retContacts[0].NodeID.AsString())
+		t.Error("However, it should be => " + kList[0].NodeID.AsString())
+		return
+	}
+	t.Log("TestFindValueNotFound done successfully!\n")
+	return
+}
+
 func TestIterativeFindNode(t *testing.T) {
 	kNum := 120
 	targetIdx := kNum - 23
