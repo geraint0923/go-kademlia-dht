@@ -378,9 +378,9 @@ func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNod
 	req.MsgID = NewRandomID()
 	req.NodeID = searchKey
 	err := client.Call("KademliaCore.FindNode", req, &res)
-	fmt.Println("res non nil00")
+	//	fmt.Println("res non nil00")
 	if err != nil || !req.MsgID.Equals(res.MsgID) {
-		fmt.Println("res non nil11")
+		//		fmt.Println("res non nil11")
 		//fmt.Println("Call error when calling FindNode remotely: ", contact.NodeID.AsString())
 		ok = false
 		return
@@ -388,7 +388,7 @@ func (k *Kademlia) internalFindNode(contact *Contact, searchKey ID) (res FindNod
 	ok = true
 	//	fmt.Println("res non nil22")
 	if res.Nodes != nil {
-		fmt.Println("res non nil")
+		//		fmt.Println("res non nil")
 		res.Nodes = filterContactList(res.Nodes, k.NodeID)
 		for _, con := range res.Nodes {
 			//			fmt.Println("update contact => " + con.NodeID.AsString())
@@ -539,19 +539,22 @@ func (k *Kademlia) internalIterative(key ID, findValue bool) (ret iterativeResul
 		respChannel := make(chan iterativeResult)
 		for parallel = 0; parallel < alpha && cHeap.Len() > 0; parallel++ {
 			con := heap.Pop(cHeap).(Contact)
-			//			fmt.Println(strconv.Itoa(parallel) + " 0=> " + con.NodeID.AsString())
+			//fmt.Println(strconv.Itoa(parallel) + " 0=> " + con.NodeID.AsString())
 			go k.doFind(con, key, findValue, respChannel)
-			//			fmt.Println(strconv.Itoa(parallel) + " 1=> " + con.NodeID.AsString())
+			//fmt.Println(strconv.Itoa(parallel) + " 1=> " + con.NodeID.AsString())
 		}
-		//		fmt.Println(strconv.Itoa(parallel) + " hehe ***")
+		//fmt.Println(strconv.Itoa(parallel) + " hehe ***")
 		for count := 0; count < parallel; count++ {
 			resp := <-respChannel
 			if resp.success {
 				activeNodes = append(activeNodes, resp.target)
 				if findValue && resp.value != nil {
 					//					fmt.Println(" => " + resp.target.NodeID.AsString())
-					ret.target = resp.target
-					ret.value = resp.value
+					// only accept the first time assignment
+					if ret.value == nil {
+						ret.target = resp.target
+						ret.value = resp.value
+					}
 				} else if resp.activeContactList != nil {
 					for _, con := range resp.activeContactList {
 						if _, ok := nodesMap[con.NodeID.AsString()]; !ok {

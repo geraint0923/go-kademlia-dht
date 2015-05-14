@@ -165,7 +165,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Provided an invalid key (" + toks[1] + ")"
 			return
 		}
-		response = k.LocalFindValue(key)
+		response, _ = k.LocalFindValue(key)
 
 	case toks[0] == "store":
 		// Store key, value pair at NodeID
@@ -214,7 +214,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Provided an invalid key (" + toks[2] + ")"
 			return
 		}
-		response = k.DoFindNode(contact, key)
+		response, _ = k.DoFindNode(contact, key)
 
 	case toks[0] == "find_value":
 		// perform a find_value RPC
@@ -238,7 +238,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Provided an invalid key (" + toks[2] + ")"
 			return
 		}
-		response = k.DoFindValue(contact, key)
+		response, _, _ = k.DoFindValue(contact, key)
 
 	case toks[0] == "iterativeFindNode":
 		// perform an iterative find node
@@ -251,7 +251,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Provided an invalid node ID(" + toks[1] + ")"
 			return
 		}
-		response = k.DoIterativeFindNode(id)
+		response, _ = k.DoIterativeFindNode(id)
 
 	case toks[0] == "iterativeStore":
 		// perform an iterative store
@@ -264,7 +264,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Provided an invalid key (" + toks[1] + ")"
 			return
 		}
-		response = k.DoIterativeStore(key, []byte(toks[2]))
+		response, _ = k.DoIterativeStore(key, []byte(toks[2]))
 
 	case toks[0] == "iterativeFindValue":
 		// performa an iterative find value
@@ -277,7 +277,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Provided an invalid key (" + toks[1] + ")"
 			return
 		}
-		response = k.DoIterativeFindValue(key)
+		response, _, _ = k.DoIterativeFindValue(key)
 
 	default:
 		response = "ERR: Unknown command"
