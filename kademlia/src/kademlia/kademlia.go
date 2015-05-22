@@ -665,3 +665,11 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (string, []byte, []Contact) {
 	}
 	return "ERR", resp.value, resp.activeContactList
 }
+
+func (k *Kademlia) DoVanish(vdoID ID, data []byte, numberKeys int, threshold int) string {
+	return "OK"
+}
+
+func (k *Kademlia) DoUnvanish(nodeID ID, vdoID ID) string {
+	return "OK"
+}

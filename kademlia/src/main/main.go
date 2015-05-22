@@ -303,6 +303,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Could not parse threshold: " + toks[4]
 			return
 		}
+		response = k.DoVanish(vdoID, dataBytes, numberKeys, threshold)
 
 	case toks[0] == "unvanish":
 		if len(toks) != 3 {
@@ -319,6 +320,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Could not parse VDO ID"
 			return
 		}
+		response = k.DoUnvanish(nodeID, vdoID)
 
 	default:
 		response = "ERR: Unknown command"
