@@ -282,6 +282,44 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 		}
 		response, _, _ = k.DoIterativeFindValue(key)
 
+	case toks[0] == "vanish":
+		if len(toks) != 5 {
+			response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold]"
+			return
+		}
+		vdoID, err := kademlia.IDFromString(toks[1])
+		if err != nil {
+			response = "ERR: Could not parse VDO ID"
+			return
+		}
+		dataBytes := []byte(toks[2])
+		numberKeys, err := strconv.Atoi(toks[3])
+		if err != nil {
+			response = "ERR: Could not parse numberKeys: " + toks[3]
+			return
+		}
+		threshold, err := strconv.Atoi(toks[4])
+		if err != nil {
+			response = "ERR: Could not parse threshold: " + toks[4]
+			return
+		}
+
+	case toks[0] == "unvanish":
+		if len(toks) != 3 {
+			response = "usage: unvanish [Node ID] [VDO ID]"
+			return
+		}
+		nodeID, err := kademlia.IDFromString(toks[1])
+		if err != nil {
+			response = "ERR: Could not parse Node ID: " + toks[1]
+			return
+		}
+		vdoID, err := kademlia.IDFromString(toks[2])
+		if err != nil {
+			response = "ERR: Could not parse VDO ID"
+			return
+		}
+
 	default:
 		response = "ERR: Unknown command"
 	}

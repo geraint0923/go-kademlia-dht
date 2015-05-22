@@ -133,3 +133,21 @@ func (kc *KademliaCore) FindValue(req FindValueRequest, res *FindValueResult) er
 	kc.kademlia.updateChannel <- req.Sender
 	return nil
 }
+
+type GetVDORequest struct {
+	Sender Contact
+	MsgID  ID
+	VdoID  ID
+}
+
+type GetVDOResult struct {
+	MsgID ID
+	VDO   VanashingDataObject
+}
+
+func (kc *KademliaCore) GetVDO(req GetVDORequest, res *GetVDOResult) error {
+	// fill in
+	res.MsgID = req.MsgID
+	// TODO: begin to work on VDO
+	return nil
+}
