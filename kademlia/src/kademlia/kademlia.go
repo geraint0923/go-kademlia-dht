@@ -112,6 +112,7 @@ func NewKademlia(laddr string, nodeId *ID) *Kademlia {
 }
 
 func (k *Kademlia) Close() {
+	_ = k.listener.Close()
 }
 
 type ContactHeap struct {
