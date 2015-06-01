@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	mathrand "math/rand"
@@ -74,7 +75,8 @@ func decrypt(key []byte, ciphertext []byte) (text []byte) {
 }
 
 func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
-	threshold byte) (vdo VanishingDataObject) {
+	threshold byte) (vdo VanishingDataObject, err error) {
+	err = nil
 	// generate key for encryption
 	key := GenerateRandomCryptoKey()
 
@@ -87,18 +89,26 @@ func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
 	// split the key
 	keyMap, err := sss.Split(numberKeys, threshold, key)
 	if err != nil {
-		fmt.Println("Error! Failed to split!")
+		err = errors.New("Error! Failed to split!")
+		fmt.Println(err.Error())
 		return
 	}
 	ids := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.NumberKeys))
 	idx := 0
+	success := 0
 	for k, v := range keyMap {
 		id := ids[idx]
 		val := append([]byte{k}, v...)
 		// TODO: call Kademlia's function to sprinkle the keys
 		// TODO: consider synchronized or asynchronized methods
-		_, _ = kadem.DoIterativeStore(id, val)
+		_, cl := kadem.DoIterativeStore(id, val)
+		if cl != nil && len(cl) > 0 {
+			success++
+		}
 		idx += 1
+	}
+	if success < int(vdo.Threshold) {
+		err = errors.New("Could not store enough share keys")
 	}
 	return
 }

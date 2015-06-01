@@ -670,8 +670,14 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (string, []byte, []Contact) {
 }
 
 func (k *Kademlia) DoVanish(vdoID ID, data []byte, numberKeys byte, threshold byte) string {
-	vdo := VanishData(k, data, numberKeys, threshold)
-	k.vdoStorage.Put(vdoID, vdo)
+	vdo, err := VanishData(k, data, numberKeys, threshold)
+	resStr := "Failed: "
+	if err == nil {
+		k.vdoStorage.Put(vdoID, vdo)
+		resStr = "OK"
+	} else {
+		resStr += err.Error()
+	}
 	return "OK"
 }
 
