@@ -4,10 +4,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"fmt"
 	"io"
 	mathrand "math/rand"
+	"sss"
 	"time"
-	//"sss"
 )
 
 type VanishingDataObject struct {
@@ -74,9 +75,53 @@ func decrypt(key []byte, ciphertext []byte) (text []byte) {
 
 func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
 	threshold byte) (vdo VanishingDataObject) {
+	// generate key for encryption
+	key := GenerateRandomCryptoKey()
+
+	// generate VDO for return
+	vdo.AccessKey = GenerateRandomAccessKey()
+	vdo.Ciphertext = encrypt(key, data)
+	vdo.NumberKeys = numberKeys
+	vdo.Threshold = threshold
+
+	// split the key
+	keyMap, err := sss.Split(numberKeys, threshold, key)
+	if err != nil {
+		fmt.Println("Error! Failed to split!")
+		return
+	}
+	ids := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.NumberKeys))
+	idx := 0
+	for k, v := range keyMap {
+		id := ids[idx]
+		val := append([]byte{k}, v...)
+		// TODO: call Kademlia's function to sprinkle the keys
+		// TODO: consider synchronized or asynchronized methods
+		_, _ = kadem.DoIterativeStore(id, val)
+		idx += 1
+	}
 	return
 }
 
 func UnvanishData(kadem *Kademlia, vdo VanishingDataObject) (data []byte) {
+	data = nil
+	ids := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.NumberKeys))
+	keyMap := make(map[byte][]byte)
+	success := 0
+	for _, id := range ids {
+		// TODO: collect the shared keys
+		// TODO: consider the synchronized and asynchronized methods
+		_, val, _ := kadem.DoIterativeFindValue(id)
+		if val != nil {
+			k := val[0]
+			v := val[1:]
+			keyMap[k] = v
+			success++
+		}
+	}
+	if success >= int(vdo.Threshold) {
+		key := sss.Combine(keyMap)
+		data = decrypt(key, vdo.Ciphertext)
+	}
 	return
 }
