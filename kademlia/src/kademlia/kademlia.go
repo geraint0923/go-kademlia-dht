@@ -35,6 +35,7 @@ type Kademlia struct {
 	getLastChannel chan routingRequest
 	routingTable   []*KBucket
 	storage        Storage
+	vdoStorage     Storage
 	server         *rpc.Server
 	listener       net.Listener
 }
@@ -68,6 +69,7 @@ func NewKademlia(laddr string, nodeId *ID) *Kademlia {
 	k.findChannel = make(chan routingRequest)
 	k.getLastChannel = make(chan routingRequest)
 	k.storage = NewLocalStorage()
+	k.vdoStorage = NewLocalStorage()
 
 	// Set up RPC server
 	// NOTE: KademliaCore is just a wrapper around Kademlia. This type includes
@@ -667,10 +669,44 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (string, []byte, []Contact) {
 	return "ERR", resp.value, resp.activeContactList
 }
 
-func (k *Kademlia) DoVanish(vdoID ID, data []byte, numberKeys int, threshold int) string {
+func (k *Kademlia) DoVanish(vdoID ID, data []byte, numberKeys byte, threshold byte) string {
+	vdo := VanishData(k, data, numberKeys, threshold)
+	k.vdoStorage.Put(vdoID, vdo)
 	return "OK"
 }
 
-func (k *Kademlia) DoUnvanish(nodeID ID, vdoID ID) string {
-	return "OK"
+func (k *Kademlia) getVDO(contact *Contact, vdoID ID) (res GetVDOResult, ok bool) {
+	client := GetClient(contact.Host, contact.Port)
+	if client == nil {
+		ok = false
+		return
+	}
+	defer client.Close()
+	req := new(GetVDORequest)
+	req.Sender = k.SelfContact
+	req.MsgID = NewRandomID()
+	req.VdoID = vdoID
+	err := client.Call("KademliaCore.GetVDO", req, &res)
+	if err != nil || !req.MsgID.Equals(res.MsgID) {
+		ok = false
+		return
+	}
+	ok = true
+	return
+}
+
+func (k *Kademlia) DoUnvanish(contact *Contact, vdoID ID) string {
+	resStr := "Failed"
+	vdoRes, ok := k.getVDO(contact, vdoID)
+	if !ok {
+		return "Failed to GetVDO"
+	}
+	if vdoRes.Err != nil {
+		return "Failed: " + vdoRes.Err.Error()
+	}
+	data := UnvanishData(k, vdoRes.VDO)
+	if data != nil {
+		resStr = "OK, data =>\n" + string(data)
+	}
+	return resStr
 }

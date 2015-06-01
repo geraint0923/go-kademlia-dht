@@ -143,12 +143,22 @@ type GetVDORequest struct {
 
 type GetVDOResult struct {
 	MsgID ID
-	VDO   VanashingDataObject
+	VDO   VanishingDataObject
+	Err   error
 }
 
 func (kc *KademliaCore) GetVDO(req GetVDORequest, res *GetVDOResult) error {
 	// fill in
 	res.MsgID = req.MsgID
 	// TODO: begin to work on VDO
+	ival, ok := kc.kademlia.vdoStorage.Get(req.VdoID)
+	if ok {
+		val := ival.(VanishingDataObject)
+		res.VDO = val
+		res.Err = nil
+	} else {
+		//res.VDO.Ciphertext = nil
+		res.Err = errors.New("VDO not found")
+	}
 	return nil
 }

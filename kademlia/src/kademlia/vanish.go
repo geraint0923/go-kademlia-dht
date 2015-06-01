@@ -5,12 +5,12 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"io"
-    "time"
 	mathrand "math/rand"
+	"time"
 	//"sss"
 )
 
-type VanashingDataObject struct {
+type VanishingDataObject struct {
 	AccessKey  int64
 	Ciphertext []byte
 	NumberKeys byte
@@ -25,9 +25,9 @@ func GenerateRandomCryptoKey() (ret []byte) {
 }
 
 func GenerateRandomAccessKey() (accessKey int64) {
-    r := mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
-    accessKey = r.Int63()
-    return
+	r := mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
+	accessKey = r.Int63()
+	return
 }
 
 func CalculateSharedKeyLocations(accessKey int64, count int64) (ids []ID) {
@@ -72,11 +72,11 @@ func decrypt(key []byte, ciphertext []byte) (text []byte) {
 	return ciphertext
 }
 
-func VanishData(kadem Kademlia, data []byte, numberKeys byte,
-	threshold byte) (vdo VanashingDataObject) {
+func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
+	threshold byte) (vdo VanishingDataObject) {
 	return
 }
 
-func UnvanishData(kadem Kademlia, vdo VanashingDataObject) (data []byte) {
+func UnvanishData(kadem *Kademlia, vdo VanishingDataObject) (data []byte) {
 	return
 }

@@ -303,7 +303,7 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Could not parse threshold: " + toks[4]
 			return
 		}
-		response = k.DoVanish(vdoID, dataBytes, numberKeys, threshold)
+		response = k.DoVanish(vdoID, dataBytes, byte(numberKeys), byte(threshold))
 
 	case toks[0] == "unvanish":
 		if len(toks) != 3 {
@@ -315,12 +315,17 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Could not parse Node ID: " + toks[1]
 			return
 		}
+		contact, err := k.FindContact(nodeID)
+		if err != nil {
+			response = "ERR: Unable to find contact with node ID (" + toks[1] + ")"
+			return
+		}
 		vdoID, err := kademlia.IDFromString(toks[2])
 		if err != nil {
 			response = "ERR: Could not parse VDO ID"
 			return
 		}
-		response = k.DoUnvanish(nodeID, vdoID)
+		response = k.DoUnvanish(contact, vdoID)
 
 	default:
 		response = "ERR: Unknown command"
