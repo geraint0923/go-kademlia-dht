@@ -22,8 +22,8 @@ const (
 )
 
 type Storage interface {
-	Get(key ID) ([]byte, bool)
-	Put(key ID, value []byte) bool
+	Get(key ID) (interface{}, bool)
+	Put(key ID, value interface{}) bool
 }
 
 // Kademlia type. You can put whatever state you need in this.
@@ -488,8 +488,9 @@ func (k *Kademlia) LocalFindValue(searchKey ID) (string, []byte) {
 	// TODO: Implement
 	// If all goes well, return "OK: <output>", otherwise print "ERR: <messsage>"
 	//return "ERR: Not implemented"
-	res, ok := k.storage.Get(searchKey)
+	ires, ok := k.storage.Get(searchKey)
 	if ok {
+		res := ires.([]byte)
 		return "OK: " + searchKey.AsString() + "(" + string(res) + ")", res
 	}
 	return "ERR: Key(" + searchKey.AsString() + ") not found", nil
