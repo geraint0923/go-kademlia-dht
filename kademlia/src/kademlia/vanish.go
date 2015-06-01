@@ -9,6 +9,7 @@ import (
 	"io"
 	mathrand "math/rand"
 	"sss"
+	"strconv"
 	"time"
 )
 
@@ -32,8 +33,8 @@ func GenerateRandomAccessKey() (accessKey int64) {
 	return
 }
 
-func CalculateSharedKeyLocations(accessKey int64, count int64) (ids []ID) {
-	r := mathrand.New(mathrand.NewSource(accessKey))
+func CalculateSharedKeyLocations(accessKey int64, epoch int64, count int64) (ids []ID) {
+	r := mathrand.New(mathrand.NewSource(accessKey + epoch))
 	ids = make([]ID, count)
 	for i := int64(0); i < count; i++ {
 		for j := 0; j < IDBytes; j++ {
@@ -74,6 +75,12 @@ func decrypt(key []byte, ciphertext []byte) (text []byte) {
 	return ciphertext
 }
 
+const EpochPeriod = 3600 * 8
+
+func getCurrentEpoch() int64 {
+	return time.Now().Unix() / EpochPeriod
+}
+
 func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
 	threshold byte) (vdo VanishingDataObject, err error) {
 	err = nil
@@ -93,7 +100,7 @@ func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
 		fmt.Println(err.Error())
 		return
 	}
-	ids := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.NumberKeys))
+	ids := CalculateSharedKeyLocations(vdo.AccessKey, getCurrentEpoch(), int64(vdo.NumberKeys))
 	idx := 0
 	success := 0
 	for k, v := range keyMap {
@@ -115,22 +122,32 @@ func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
 
 func UnvanishData(kadem *Kademlia, vdo VanishingDataObject) (data []byte) {
 	data = nil
-	ids := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.NumberKeys))
-	keyMap := make(map[byte][]byte)
-	success := 0
-	for _, id := range ids {
-		// TODO: collect the shared keys
-		// TODO: consider the synchronized and asynchronized methods
-		_, val, _ := kadem.DoIterativeFindValue(id)
-		if val != nil {
-			k := val[0]
-			v := val[1:]
-			keyMap[k] = v
-			success++
+	currentEpoch := getCurrentEpoch()
+	var success = 0
+	var key []byte
+	// use the current and the neighbor epoch to find the keys
+	for epoch := int64(-1); epoch <= 1; epoch++ {
+		ids := CalculateSharedKeyLocations(vdo.AccessKey, currentEpoch+epoch, int64(vdo.NumberKeys))
+		keyMap := make(map[byte][]byte)
+		success = 0
+		for _, id := range ids {
+			// TODO: collect the shared keys
+			// TODO: consider the synchronized and asynchronized methods
+			_, val, _ := kadem.DoIterativeFindValue(id)
+			if val != nil {
+				k := val[0]
+				v := val[1:]
+				keyMap[k] = v
+				success++
+			}
+		}
+		if success >= int(vdo.Threshold) {
+			key = sss.Combine(keyMap)
+			fmt.Println("current epoch => " + strconv.Itoa(int(epoch)))
+			break
 		}
 	}
 	if success >= int(vdo.Threshold) {
-		key := sss.Combine(keyMap)
 		data = decrypt(key, vdo.Ciphertext)
 	}
 	return
