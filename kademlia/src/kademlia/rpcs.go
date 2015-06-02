@@ -64,6 +64,7 @@ type StoreResult struct {
 func (kc *KademliaCore) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
 	res.MsgID = req.MsgID
+	//fmt.Println("store: " + req.Key.AsString())
 	ok := kc.kademlia.storage.Put(req.Key, req.Value)
 	if ok {
 		res.Err = nil

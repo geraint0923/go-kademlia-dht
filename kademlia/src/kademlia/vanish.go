@@ -9,7 +9,7 @@ import (
 	"io"
 	mathrand "math/rand"
 	"sss"
-	"strconv"
+	//	"strconv"
 	"time"
 )
 
@@ -117,9 +117,7 @@ func vdoMonitor(kadem *Kademlia, vdo VanishingDataObject, timeout int64) {
 		sec = EpochPeriod
 	}
 	prepareSec := int64(1)
-	fmt.Println("begin sleep!")
 	time.Sleep(time.Second * time.Duration(sec-prepareSec))
-	fmt.Println("Extend!")
 	_, originKey := UnvanishData(kadem, vdo, false)
 	if originKey == nil {
 		fmt.Println("Failed to reconstruct the original key when extending time")
@@ -150,17 +148,13 @@ func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
 
 	// push to other nodes
 	success := pushShareKeys(kadem, vdo, key)
-	fmt.Println("success => " + strconv.Itoa(success))
-	fmt.Println("timeout => " + strconv.Itoa(int(timeout)))
 
 	if success < int(vdo.Threshold) {
 		err = errors.New("Could not store enough share keys")
 	} else if timeout > 0 && timeout*TimePeriod > EpochPeriod {
 		// TODO: start a new goroutine to extend tne timeout
-		fmt.Println("hehe")
 		go vdoMonitor(kadem, vdo, timeout)
 	}
-	fmt.Println("hehehe => " + strconv.Itoa((int(timeout * TimePeriod))) + " " + strconv.Itoa(int(EpochPeriod)))
 	return
 }
 
@@ -187,11 +181,9 @@ func UnvanishData(kadem *Kademlia, vdo VanishingDataObject, doDecrypt bool) (dat
 		}
 		if success >= int(vdo.Threshold) {
 			key = sss.Combine(keyMap)
-			fmt.Println("current epoch => " + strconv.Itoa(int(epoch)))
 			break
 		}
 	}
-	fmt.Println("unv success => " + strconv.Itoa(success))
 	if success >= int(vdo.Threshold) && doDecrypt {
 		data = decrypt(key, vdo.Ciphertext)
 	}
