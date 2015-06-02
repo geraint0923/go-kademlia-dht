@@ -75,17 +75,20 @@ func decrypt(key []byte, ciphertext []byte) (text []byte) {
 	return ciphertext
 }
 
+// use for epoch re-push
 const (
-	TimePeriod  = int64(2)
-	EpochCount  = int64(4)
-	EpochPeriod = TimePeriod * EpochCount
+	TimePeriod  = int64(3600)             // unit in hours
+	EpochCount  = int64(8)                // 8 hours per epoch
+	EpochPeriod = TimePeriod * EpochCount // seconds per epoch
 )
 
 func getCurrentEpoch() int64 {
 	return time.Now().Unix() / EpochPeriod
 }
 
+// push the shared keys to other nodes
 func pushShareKeys(kadem *Kademlia, vdo VanishingDataObject, key []byte) (success int) {
+	// how many shared keys are push to other nodes
 	success = 0
 
 	// split the key
@@ -95,6 +98,7 @@ func pushShareKeys(kadem *Kademlia, vdo VanishingDataObject, key []byte) (succes
 		fmt.Println(err.Error())
 		return
 	}
+	// generate the shared keys locations using access key and epoch
 	ids := CalculateSharedKeyLocations(vdo.AccessKey, getCurrentEpoch(), int64(vdo.NumberKeys))
 	idx := 0
 	for k, v := range keyMap {
@@ -111,6 +115,7 @@ func pushShareKeys(kadem *Kademlia, vdo VanishingDataObject, key []byte) (succes
 	return
 }
 
+// for EXTRA POINT: wait for re-pushing the shared keys
 func vdoMonitor(kadem *Kademlia, vdo VanishingDataObject, timeout int64) {
 	sec := timeout * TimePeriod
 	if sec > EpochPeriod {
@@ -129,6 +134,7 @@ func vdoMonitor(kadem *Kademlia, vdo VanishingDataObject, timeout int64) {
 		return
 	}
 	timeout -= EpochCount
+	// to see if it is necessary to re-push the VDO again
 	if timeout > 0 {
 		go vdoMonitor(kadem, vdo, timeout)
 	}
@@ -184,6 +190,8 @@ func UnvanishData(kadem *Kademlia, vdo VanishingDataObject, doDecrypt bool) (dat
 			break
 		}
 	}
+	// if the number of successfully collected keys >= threshold
+	// then we could decrypt the ciphertext
 	if success >= int(vdo.Threshold) && doDecrypt {
 		data = decrypt(key, vdo.Ciphertext)
 	}
