@@ -283,8 +283,8 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 		response, _, _ = k.DoIterativeFindValue(key)
 
 	case toks[0] == "vanish":
-		if len(toks) != 5 {
-			response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold]"
+		if len(toks) != 5 && len(toks) != 6 {
+			response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold] [timeout(optional)]"
 			return
 		}
 		vdoID, err := kademlia.IDFromString(toks[1])
@@ -303,7 +303,16 @@ func executeLine(k *kademlia.Kademlia, line string) (response string) {
 			response = "ERR: Could not parse threshold: " + toks[4]
 			return
 		}
-		response = k.DoVanish(vdoID, dataBytes, byte(numberKeys), byte(threshold))
+		timeout := int64(-1)
+		if len(toks) == 6 {
+			tt, err := strconv.Atoi(toks[5])
+			if err != nil {
+				response = "ERR: Could not parse timeout: " + toks[5]
+				return
+			}
+			timeout = int64(tt)
+		}
+		response = k.DoVanish(vdoID, dataBytes, byte(numberKeys), byte(threshold), timeout)
 
 	case toks[0] == "unvanish":
 		if len(toks) != 3 {

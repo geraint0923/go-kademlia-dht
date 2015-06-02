@@ -75,26 +75,21 @@ func decrypt(key []byte, ciphertext []byte) (text []byte) {
 	return ciphertext
 }
 
-const EpochPeriod = 3600 * 8
+const (
+	TimePeriod  = int64(2)
+	EpochCount  = int64(4)
+	EpochPeriod = TimePeriod * EpochCount
+)
 
 func getCurrentEpoch() int64 {
 	return time.Now().Unix() / EpochPeriod
 }
 
-func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
-	threshold byte) (vdo VanishingDataObject, err error) {
-	err = nil
-	// generate key for encryption
-	key := GenerateRandomCryptoKey()
-
-	// generate VDO for return
-	vdo.AccessKey = GenerateRandomAccessKey()
-	vdo.Ciphertext = encrypt(key, data)
-	vdo.NumberKeys = numberKeys
-	vdo.Threshold = threshold
+func pushShareKeys(kadem *Kademlia, vdo VanishingDataObject, key []byte) (success int) {
+	success = 0
 
 	// split the key
-	keyMap, err := sss.Split(numberKeys, threshold, key)
+	keyMap, err := sss.Split(vdo.NumberKeys, vdo.Threshold, key)
 	if err != nil {
 		err = errors.New("Error! Failed to split!")
 		fmt.Println(err.Error())
@@ -102,7 +97,6 @@ func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
 	}
 	ids := CalculateSharedKeyLocations(vdo.AccessKey, getCurrentEpoch(), int64(vdo.NumberKeys))
 	idx := 0
-	success := 0
 	for k, v := range keyMap {
 		id := ids[idx]
 		val := append([]byte{k}, v...)
@@ -114,17 +108,67 @@ func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
 		}
 		idx += 1
 	}
-	if success < int(vdo.Threshold) {
-		err = errors.New("Could not store enough share keys")
-	}
 	return
 }
 
-func UnvanishData(kadem *Kademlia, vdo VanishingDataObject) (data []byte) {
+func vdoMonitor(kadem *Kademlia, vdo VanishingDataObject, timeout int64) {
+	sec := timeout * TimePeriod
+	if sec > EpochPeriod {
+		sec = EpochPeriod
+	}
+	prepareSec := int64(1)
+	fmt.Println("begin sleep!")
+	time.Sleep(time.Second * time.Duration(sec-prepareSec))
+	fmt.Println("Extend!")
+	_, originKey := UnvanishData(kadem, vdo, false)
+	if originKey == nil {
+		fmt.Println("Failed to reconstruct the original key when extending time")
+		return
+	}
+	success := pushShareKeys(kadem, vdo, originKey)
+	if success < int(vdo.Threshold) {
+		fmt.Println("Failed to push share keys when extending time")
+		return
+	}
+	timeout -= EpochCount
+	if timeout > 0 {
+		go vdoMonitor(kadem, vdo, timeout)
+	}
+}
+
+func VanishData(kadem *Kademlia, data []byte, numberKeys byte,
+	threshold byte, timeout int64) (vdo VanishingDataObject, err error) {
+	err = nil
+	// generate key for encryption
+	key := GenerateRandomCryptoKey()
+
+	// generate VDO for return
+	vdo.AccessKey = GenerateRandomAccessKey()
+	vdo.Ciphertext = encrypt(key, data)
+	vdo.NumberKeys = numberKeys
+	vdo.Threshold = threshold
+
+	// push to other nodes
+	success := pushShareKeys(kadem, vdo, key)
+	fmt.Println("success => " + strconv.Itoa(success))
+	fmt.Println("timeout => " + strconv.Itoa(int(timeout)))
+
+	if success < int(vdo.Threshold) {
+		err = errors.New("Could not store enough share keys")
+	} else if timeout > 0 && timeout*TimePeriod > EpochPeriod {
+		// TODO: start a new goroutine to extend tne timeout
+		fmt.Println("hehe")
+		go vdoMonitor(kadem, vdo, timeout)
+	}
+	fmt.Println("hehehe => " + strconv.Itoa((int(timeout * TimePeriod))) + " " + strconv.Itoa(int(EpochPeriod)))
+	return
+}
+
+func UnvanishData(kadem *Kademlia, vdo VanishingDataObject, doDecrypt bool) (data []byte, key []byte) {
 	data = nil
+	key = nil
 	currentEpoch := getCurrentEpoch()
 	var success = 0
-	var key []byte
 	// use the current and the neighbor epoch to find the keys
 	for epoch := int64(-1); epoch <= 1; epoch++ {
 		ids := CalculateSharedKeyLocations(vdo.AccessKey, currentEpoch+epoch, int64(vdo.NumberKeys))
@@ -147,7 +191,8 @@ func UnvanishData(kadem *Kademlia, vdo VanishingDataObject) (data []byte) {
 			break
 		}
 	}
-	if success >= int(vdo.Threshold) {
+	fmt.Println("unv success => " + strconv.Itoa(success))
+	if success >= int(vdo.Threshold) && doDecrypt {
 		data = decrypt(key, vdo.Ciphertext)
 	}
 	return
